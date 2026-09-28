@@ -9,6 +9,8 @@ from apps.accounts.models import Membership, Role
 from apps.schools.models import School
 from apps.schools.services import create_school
 
+from ._demo_school_data import seed_school_data
+
 User = get_user_model()
 
 # Local development data only. The password comes from --password or DEMO_PASSWORD.
@@ -81,5 +83,8 @@ class Command(BaseCommand):
             for code, role_keys in access.items():
                 membership, _ = Membership.objects.get_or_create(user=user, school=schools[code])
                 membership.roles.set(Role.objects.filter(school=schools[code], key__in=role_keys))
+
+        for school in schools.values():
+            seed_school_data(school, self.stdout)
 
         self.stdout.write(self.style.SUCCESS("Demo data ready. Sign in with any @monecole.test account."))

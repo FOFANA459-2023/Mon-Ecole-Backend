@@ -4,6 +4,173 @@ info:
   version: 1.0.0
   description: School management system API.
 paths:
+  /api/v1/academic-years/:
+    get:
+      operationId: academic_years_list
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - academic-years
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AcademicYear'
+          description: ''
+    post:
+      operationId: academic_years_create
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      tags:
+      - academic-years
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcademicYearRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AcademicYearRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AcademicYearRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcademicYear'
+          description: ''
+  /api/v1/academic-years/{id}/:
+    get:
+      operationId: academic_years_retrieve
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this academic year.
+        required: true
+      tags:
+      - academic-years
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcademicYear'
+          description: ''
+    patch:
+      operationId: academic_years_partial_update
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this academic year.
+        required: true
+      tags:
+      - academic-years
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedAcademicYearRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedAcademicYearRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedAcademicYearRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcademicYear'
+          description: ''
+    delete:
+      operationId: academic_years_destroy
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this academic year.
+        required: true
+      tags:
+      - academic-years
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/academic-years/{id}/set-current/:
+    post:
+      operationId: academic_years_set_current_create
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this academic year.
+        required: true
+      tags:
+      - academic-years
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcademicYear'
+          description: ''
   /api/v1/audit-logs/:
     get:
       operationId: audit_logs_list
@@ -227,6 +394,1226 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/class-subjects/:
+    get:
+      operationId: class_subjects_list
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: query
+        name: class_group
+        schema:
+          type: integer
+      - in: query
+        name: class_group__academic_year
+        schema:
+          type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: subject
+        schema:
+          type: integer
+      - in: query
+        name: teacher
+        schema:
+          type: integer
+      tags:
+      - class-subjects
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ClassSubject'
+          description: ''
+    post:
+      operationId: class_subjects_create
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      tags:
+      - class-subjects
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClassSubjectRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ClassSubjectRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ClassSubjectRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClassSubject'
+          description: ''
+  /api/v1/class-subjects/{id}/:
+    get:
+      operationId: class_subjects_retrieve
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this class subject.
+        required: true
+      tags:
+      - class-subjects
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClassSubject'
+          description: ''
+    patch:
+      operationId: class_subjects_partial_update
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this class subject.
+        required: true
+      tags:
+      - class-subjects
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedClassSubjectRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedClassSubjectRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedClassSubjectRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClassSubject'
+          description: ''
+    delete:
+      operationId: class_subjects_destroy
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this class subject.
+        required: true
+      tags:
+      - class-subjects
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/classes/:
+    get:
+      operationId: classes_list
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: query
+        name: academic_year
+        schema:
+          type: integer
+      - in: query
+        name: class_teacher
+        schema:
+          type: integer
+      - in: query
+        name: level
+        schema:
+          type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - active
+          - archived
+        description: |-
+          * `active` - Active
+          * `archived` - Archived
+      tags:
+      - classes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedClassGroupList'
+          description: ''
+    post:
+      operationId: classes_create
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      tags:
+      - classes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClassGroupRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ClassGroupRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ClassGroupRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClassGroup'
+          description: ''
+  /api/v1/classes/{id}/:
+    get:
+      operationId: classes_retrieve
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this class.
+        required: true
+      tags:
+      - classes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClassGroup'
+          description: ''
+    patch:
+      operationId: classes_partial_update
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this class.
+        required: true
+      tags:
+      - classes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedClassGroupRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedClassGroupRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedClassGroupRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClassGroup'
+          description: ''
+    delete:
+      operationId: classes_destroy
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this class.
+        required: true
+      tags:
+      - classes
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/classes/{id}/cards/:
+    get:
+      operationId: classes_cards_retrieve
+      description: Printable ID cards for every student in the class (A4 sheets of
+        10).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this class.
+        required: true
+      tags:
+      - classes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/dashboard/summary/:
+    get:
+      operationId: dashboard_summary_retrieve
+      description: Headline numbers for the dashboard (school-wide, for one academic
+        year).
+      parameters:
+      - in: query
+        name: academic_year
+        schema:
+          type: integer
+      tags:
+      - dashboard
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/documents/:
+    get:
+      operationId: documents_list
+      description: 'Documents are listed per owner: ?owner_type=student&owner_id=42.'
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - in: query
+        name: owner_id
+        schema:
+          type: integer
+        required: true
+      - in: query
+        name: owner_type
+        schema:
+          type: string
+          enum:
+          - school
+          - staff
+          - student
+        required: true
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - documents
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Document'
+          description: ''
+    post:
+      operationId: documents_create
+      description: 'Documents are listed per owner: ?owner_type=student&owner_id=42.'
+      tags:
+      - documents
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DocumentUploadRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+          description: ''
+  /api/v1/documents/{id}/:
+    get:
+      operationId: documents_retrieve
+      description: 'Documents are listed per owner: ?owner_type=student&owner_id=42.'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this document.
+        required: true
+      tags:
+      - documents
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+          description: ''
+    delete:
+      operationId: documents_destroy
+      description: 'Documents are listed per owner: ?owner_type=student&owner_id=42.'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this document.
+        required: true
+      tags:
+      - documents
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/documents/{id}/download/:
+    get:
+      operationId: documents_download_retrieve
+      description: 'Documents are listed per owner: ?owner_type=student&owner_id=42.'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this document.
+        required: true
+      tags:
+      - documents
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/enrollments/:
+    get:
+      operationId: enrollments_list
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: query
+        name: academic_year
+        schema:
+          type: integer
+      - in: query
+        name: class_group
+        schema:
+          type: integer
+      - in: query
+        name: class_group__level
+        schema:
+          type: integer
+      - in: query
+        name: enrollment_date__gte
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: enrollment_date__lte
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: kind
+        schema:
+          type: string
+          enum:
+          - new
+          - re_enrolment
+          - transfer_in
+        description: |-
+          * `new` - New student
+          * `re_enrolment` - Re-enrolment
+          * `transfer_in` - Transfer from another school
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - active
+          - cancelled
+          - class_changed
+          - completed
+          - withdrawn
+        description: |-
+          * `active` - Active
+          * `class_changed` - Moved to another class
+          * `withdrawn` - Left the school
+          * `completed` - Year completed
+          * `cancelled` - Cancelled
+      - in: query
+        name: status__in
+        schema:
+          type: array
+          items:
+            type: string
+        description: Les valeurs multiples doivent être séparées par des virgules.
+        explode: false
+        style: form
+      - in: query
+        name: student
+        schema:
+          type: integer
+      tags:
+      - enrollments
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedEnrollmentList'
+          description: ''
+    post:
+      operationId: enrollments_create
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      tags:
+      - enrollments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnrollExistingRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/EnrollExistingRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/EnrollExistingRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Enrollment'
+          description: ''
+  /api/v1/enrollments/{id}/:
+    get:
+      operationId: enrollments_retrieve
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this enrolment.
+        required: true
+      tags:
+      - enrollments
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Enrollment'
+          description: ''
+    patch:
+      operationId: enrollments_partial_update
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this enrolment.
+        required: true
+      tags:
+      - enrollments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedEnrollmentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedEnrollmentRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedEnrollmentRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Enrollment'
+          description: ''
+  /api/v1/enrollments/{id}/cancel/:
+    post:
+      operationId: enrollments_cancel_create
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this enrolment.
+        required: true
+      tags:
+      - enrollments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CancelRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CancelRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Enrollment'
+          description: ''
+  /api/v1/enrollments/{id}/change-class/:
+    post:
+      operationId: enrollments_change_class_create
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this enrolment.
+        required: true
+      tags:
+      - enrollments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeClassRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ChangeClassRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ChangeClassRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Enrollment'
+          description: ''
+  /api/v1/enrollments/{id}/form/:
+    get:
+      operationId: enrollments_form_retrieve
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this enrolment.
+        required: true
+      tags:
+      - enrollments
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/enrollments/{id}/withdraw/:
+    post:
+      operationId: enrollments_withdraw_create
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this enrolment.
+        required: true
+      tags:
+      - enrollments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WithdrawRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/WithdrawRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/WithdrawRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Enrollment'
+          description: ''
+  /api/v1/enrollments/promote/:
+    post:
+      operationId: enrollments_promote_create
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      tags:
+      - enrollments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PromoteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PromoteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PromoteRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromoteResult'
+          description: ''
+  /api/v1/enrollments/register/:
+    post:
+      operationId: enrollments_register_create
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      tags:
+      - enrollments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegistrationRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RegistrationRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RegistrationRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Enrollment'
+          description: ''
+  /api/v1/guardians/:
+    get:
+      operationId: guardians_list
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - guardians
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedGuardianList'
+          description: ''
+  /api/v1/guardians/{id}/:
+    get:
+      operationId: guardians_retrieve
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this guardian.
+        required: true
+      tags:
+      - guardians
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Guardian'
+          description: ''
+    patch:
+      operationId: guardians_partial_update
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this guardian.
+        required: true
+      tags:
+      - guardians
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedGuardianRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedGuardianRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedGuardianRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Guardian'
+          description: ''
+  /api/v1/imports/{kind}/:
+    post:
+      operationId: imports_create
+      description: Check (commit=false) or import (commit=true) an Excel/CSV list
+        of students or staff.
+      parameters:
+      - in: path
+        name: kind
+        schema:
+          type: string
+        required: true
+      tags:
+      - imports
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportUploadRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/imports/{kind}/template/:
+    get:
+      operationId: imports_template_retrieve
+      description: An Excel template with the expected columns, an example row and
+        instructions.
+      parameters:
+      - in: path
+        name: kind
+        schema:
+          type: string
+        required: true
+      tags:
+      - imports
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/levels/:
+    get:
+      operationId: levels_list
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: query
+        name: cycle
+        schema:
+          type: string
+          enum:
+          - lower_secondary
+          - other
+          - preschool
+          - primary
+          - upper_secondary
+        description: |-
+          * `preschool` - Preschool
+          * `primary` - Primary
+          * `lower_secondary` - Lower secondary
+          * `upper_secondary` - Upper secondary
+          * `other` - Other
+      - in: query
+        name: is_active
+        schema:
+          type: boolean
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - levels
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Level'
+          description: ''
+    post:
+      operationId: levels_create
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      tags:
+      - levels
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LevelRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LevelRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LevelRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Level'
+          description: ''
+  /api/v1/levels/{id}/:
+    get:
+      operationId: levels_retrieve
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this level.
+        required: true
+      tags:
+      - levels
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Level'
+          description: ''
+    patch:
+      operationId: levels_partial_update
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this level.
+        required: true
+      tags:
+      - levels
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedLevelRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedLevelRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedLevelRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Level'
+          description: ''
+    delete:
+      operationId: levels_destroy
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this level.
+        required: true
+      tags:
+      - levels
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/me/:
     get:
       operationId: me_retrieve
@@ -446,6 +1833,1124 @@ paths:
               schema:
                 $ref: '#/components/schemas/School'
           description: ''
+  /api/v1/search/:
+    get:
+      operationId: search_retrieve
+      description: 'One search box for the whole school: students, guardians, staff
+        and classes.'
+      parameters:
+      - in: query
+        name: q
+        schema:
+          type: string
+        required: true
+      tags:
+      - search
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/staff/:
+    get:
+      operationId: staff_list
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: query
+        name: has_access
+        schema:
+          type: boolean
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: staff_type
+        schema:
+          type: string
+          enum:
+          - administrative
+          - support
+          - teacher
+        description: |-
+          * `teacher` - Teacher
+          * `administrative` - Administrative
+          * `support` - Support
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - active
+          - archived
+        description: |-
+          * `active` - Active
+          * `archived` - Archived
+      tags:
+      - staff
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedStaffList'
+          description: ''
+    post:
+      operationId: staff_create
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      tags:
+      - staff
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StaffRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StaffRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Staff'
+          description: ''
+  /api/v1/staff/{id}/:
+    get:
+      operationId: staff_retrieve
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this staff member.
+        required: true
+      tags:
+      - staff
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Staff'
+          description: ''
+    patch:
+      operationId: staff_partial_update
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this staff member.
+        required: true
+      tags:
+      - staff
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedStaffRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedStaffRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedStaffRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Staff'
+          description: ''
+  /api/v1/staff/{id}/archive/:
+    post:
+      operationId: staff_archive_create
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this staff member.
+        required: true
+      tags:
+      - staff
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Staff'
+          description: ''
+  /api/v1/staff/{id}/grant-access/:
+    post:
+      operationId: staff_grant_access_create
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this staff member.
+        required: true
+      tags:
+      - staff
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GrantAccessRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/GrantAccessRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/GrantAccessRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Staff'
+          description: ''
+  /api/v1/staff/{id}/photo/:
+    post:
+      operationId: staff_photo_create
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this staff member.
+        required: true
+      tags:
+      - staff
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PhotoRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Staff'
+          description: ''
+  /api/v1/staff/{id}/restore/:
+    post:
+      operationId: staff_restore_create
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this staff member.
+        required: true
+      tags:
+      - staff
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Staff'
+          description: ''
+  /api/v1/students/:
+    get:
+      operationId: students_list
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: query
+        name: academic_year
+        schema:
+          type: number
+      - in: query
+        name: class_group
+        schema:
+          type: number
+      - in: query
+        name: enrolled
+        schema:
+          type: boolean
+        description: Has an active enrolment
+      - in: query
+        name: gender
+        schema:
+          type: string
+          enum:
+          - F
+          - M
+        description: |-
+          * `M` - Male
+          * `F` - Female
+      - in: query
+        name: level
+        schema:
+          type: number
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - active
+          - archived
+        description: |-
+          * `active` - Active
+          * `archived` - Archived
+      tags:
+      - students
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedStudentListList'
+          description: ''
+    post:
+      operationId: students_create
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      tags:
+      - students
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudentRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StudentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StudentRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Student'
+          description: ''
+  /api/v1/students/{id}/:
+    get:
+      operationId: students_retrieve
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this student.
+        required: true
+      tags:
+      - students
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Student'
+          description: ''
+    patch:
+      operationId: students_partial_update
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this student.
+        required: true
+      tags:
+      - students
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedStudentRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedStudentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedStudentRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Student'
+          description: ''
+    delete:
+      operationId: students_destroy
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this student.
+        required: true
+      tags:
+      - students
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/students/{id}/archive/:
+    post:
+      operationId: students_archive_create
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this student.
+        required: true
+      tags:
+      - students
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Student'
+          description: ''
+  /api/v1/students/{id}/card/:
+    get:
+      operationId: students_card_retrieve
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this student.
+        required: true
+      tags:
+      - students
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/students/{id}/guardians/:
+    get:
+      operationId: students_guardians_list
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: query
+        name: academic_year
+        schema:
+          type: number
+      - in: query
+        name: class_group
+        schema:
+          type: number
+      - in: query
+        name: enrolled
+        schema:
+          type: boolean
+        description: Has an active enrolment
+      - in: query
+        name: gender
+        schema:
+          type: string
+          enum:
+          - F
+          - M
+        description: |-
+          * `M` - Male
+          * `F` - Female
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this student.
+        required: true
+      - in: query
+        name: level
+        schema:
+          type: number
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - active
+          - archived
+        description: |-
+          * `active` - Active
+          * `archived` - Archived
+      tags:
+      - students
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedGuardianLinkList'
+          description: ''
+    post:
+      operationId: students_guardians_create
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this student.
+        required: true
+      tags:
+      - students
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GuardianInputRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/GuardianInputRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/GuardianInputRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuardianLink'
+          description: ''
+  /api/v1/students/{id}/guardians/{link_id}/:
+    patch:
+      operationId: students_guardians_partial_update
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this student.
+        required: true
+      - in: path
+        name: link_id
+        schema:
+          type: string
+          pattern: ^\d+$
+        required: true
+      tags:
+      - students
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedGuardianLinkUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedGuardianLinkUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedGuardianLinkUpdateRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuardianLink'
+          description: ''
+    delete:
+      operationId: students_guardians_destroy
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this student.
+        required: true
+      - in: path
+        name: link_id
+        schema:
+          type: string
+          pattern: ^\d+$
+        required: true
+      tags:
+      - students
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/students/{id}/photo/:
+    post:
+      operationId: students_photo_create
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this student.
+        required: true
+      tags:
+      - students
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PhotoRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Student'
+          description: ''
+  /api/v1/students/{id}/restore/:
+    post:
+      operationId: students_restore_create
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this student.
+        required: true
+      tags:
+      - students
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Student'
+          description: ''
+  /api/v1/students/export/:
+    get:
+      operationId: students_export_retrieve
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: query
+        name: file_format
+        schema:
+          type: string
+          enum:
+          - csv
+          - xlsx
+      tags:
+      - students
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/subjects/:
+    get:
+      operationId: subjects_list
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: query
+        name: is_active
+        schema:
+          type: boolean
+      - in: query
+        name: level
+        schema:
+          type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - subjects
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedSubjectList'
+          description: ''
+    post:
+      operationId: subjects_create
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      tags:
+      - subjects
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubjectRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SubjectRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SubjectRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subject'
+          description: ''
+  /api/v1/subjects/{id}/:
+    get:
+      operationId: subjects_retrieve
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this subject.
+        required: true
+      tags:
+      - subjects
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subject'
+          description: ''
+    patch:
+      operationId: subjects_partial_update
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this subject.
+        required: true
+      tags:
+      - subjects
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedSubjectRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedSubjectRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedSubjectRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subject'
+          description: ''
+    delete:
+      operationId: subjects_destroy
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this subject.
+        required: true
+      tags:
+      - subjects
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/terms/:
+    get:
+      operationId: terms_list
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: query
+        name: academic_year
+        schema:
+          type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - terms
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Term'
+          description: ''
+    post:
+      operationId: terms_create
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      tags:
+      - terms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TermRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TermRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TermRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Term'
+          description: ''
+  /api/v1/terms/{id}/:
+    get:
+      operationId: terms_retrieve
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this term.
+        required: true
+      tags:
+      - terms
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Term'
+          description: ''
+    patch:
+      operationId: terms_partial_update
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this term.
+        required: true
+      tags:
+      - terms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedTermRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedTermRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedTermRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Term'
+          description: ''
+    delete:
+      operationId: terms_destroy
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this term.
+        required: true
+      tags:
+      - terms
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/users/:
     get:
       operationId: users_list
@@ -598,6 +3103,99 @@ paths:
           description: No response body
 components:
   schemas:
+    AcademicYear:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          description: e.g. 2026-2027
+          maxLength: 20
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        is_current:
+          type: boolean
+          readOnly: true
+        status:
+          $ref: '#/components/schemas/YearStatusEnum'
+        terms:
+          type: array
+          items:
+            $ref: '#/components/schemas/Term'
+          readOnly: true
+      required:
+      - end_date
+      - id
+      - is_current
+      - name
+      - start_date
+      - terms
+    AcademicYearRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          description: e.g. 2026-2027
+          maxLength: 20
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        status:
+          $ref: '#/components/schemas/YearStatusEnum'
+        term_count:
+          type: integer
+          maximum: 6
+          minimum: 0
+          writeOnly: true
+      required:
+      - end_date
+      - name
+      - start_date
+    ArchiveStatusEnum:
+      enum:
+      - active
+      - archived
+      type: string
+      description: |-
+        * `active` - Active
+        * `archived` - Archived
+    AssignmentSubject:
+      type: object
+      properties:
+        id:
+          type: integer
+        class_name:
+          type: string
+        subject_name:
+          type: string
+      required:
+      - class_name
+      - id
+      - subject_name
+    Assignments:
+      type: object
+      properties:
+        subjects:
+          type: array
+          items:
+            $ref: '#/components/schemas/AssignmentSubject'
+        homeroom_classes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Homeroom'
+      required:
+      - homeroom_classes
+      - subjects
     AuditLog:
       type: object
       properties:
@@ -661,6 +3259,56 @@ components:
       - user
       - user_agent
       - user_name
+    BlankEnum:
+      enum:
+      - ''
+    CancelRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 255
+      required:
+      - reason
+    CategoryEnum:
+      enum:
+      - birth_certificate
+      - id_photo
+      - previous_report
+      - transfer_certificate
+      - medical
+      - identity
+      - diploma
+      - contract
+      - official
+      - other
+      type: string
+      description: |-
+        * `birth_certificate` - Birth certificate
+        * `id_photo` - ID photo
+        * `previous_report` - Previous report card
+        * `transfer_certificate` - Transfer certificate
+        * `medical` - Medical record
+        * `identity` - Identity document
+        * `diploma` - Diploma / certificate
+        * `contract` - Contract
+        * `official` - Official document
+        * `other` - Other
+    ChangeClassRequest:
+      type: object
+      properties:
+        class_group:
+          type: integer
+        date:
+          type: string
+          format: date
+        reason:
+          type: string
+          default: ''
+          maxLength: 255
+      required:
+      - class_group
     ChangePasswordRequest:
       type: object
       properties:
@@ -673,6 +3321,607 @@ components:
       required:
       - current_password
       - new_password
+    ClassGroup:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        academic_year:
+          type: integer
+        academic_year_name:
+          type: string
+          readOnly: true
+        level:
+          type: integer
+        level_name:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          maxLength: 50
+        room:
+          type: string
+          maxLength: 50
+        class_teacher:
+          type: integer
+          nullable: true
+        class_teacher_name:
+          type: string
+          readOnly: true
+        capacity:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          nullable: true
+        status:
+          $ref: '#/components/schemas/ArchiveStatusEnum'
+        enrolled_count:
+          type: integer
+          readOnly: true
+        subject_count:
+          type: integer
+          readOnly: true
+      required:
+      - academic_year
+      - academic_year_name
+      - class_teacher_name
+      - enrolled_count
+      - id
+      - level
+      - level_name
+      - name
+      - subject_count
+    ClassGroupRequest:
+      type: object
+      properties:
+        academic_year:
+          type: integer
+        level:
+          type: integer
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        room:
+          type: string
+          maxLength: 50
+        class_teacher:
+          type: integer
+          nullable: true
+        capacity:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          nullable: true
+        status:
+          $ref: '#/components/schemas/ArchiveStatusEnum'
+      required:
+      - academic_year
+      - level
+      - name
+    ClassSubject:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        class_group:
+          type: integer
+        class_name:
+          type: string
+          readOnly: true
+        subject:
+          type: integer
+        subject_name:
+          type: string
+          readOnly: true
+        subject_code:
+          type: string
+          readOnly: true
+        teacher:
+          type: integer
+          nullable: true
+        teacher_name:
+          type: string
+          readOnly: true
+        coefficient:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
+        weekly_hours:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
+          nullable: true
+      required:
+      - class_group
+      - class_name
+      - id
+      - subject
+      - subject_code
+      - subject_name
+      - teacher_name
+    ClassSubjectRequest:
+      type: object
+      properties:
+        class_group:
+          type: integer
+        subject:
+          type: integer
+        teacher:
+          type: integer
+          nullable: true
+        coefficient:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
+        weekly_hours:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
+          nullable: true
+      required:
+      - class_group
+      - subject
+    CycleEnum:
+      enum:
+      - preschool
+      - primary
+      - lower_secondary
+      - upper_secondary
+      - other
+      type: string
+      description: |-
+        * `preschool` - Preschool
+        * `primary` - Primary
+        * `lower_secondary` - Lower secondary
+        * `upper_secondary` - Upper secondary
+        * `other` - Other
+    Document:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        owner_type:
+          $ref: '#/components/schemas/OwnerTypeEnum'
+        owner_id:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        category:
+          $ref: '#/components/schemas/CategoryEnum'
+        title:
+          type: string
+          maxLength: 200
+        content_type:
+          type: string
+          maxLength: 100
+        size:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        uploaded_by_name:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - owner_id
+      - owner_type
+      - title
+      - uploaded_by_name
+    DocumentUploadRequest:
+      type: object
+      properties:
+        owner_type:
+          $ref: '#/components/schemas/OwnerTypeEnum'
+        owner_id:
+          type: integer
+          minimum: 0
+        category:
+          allOf:
+          - $ref: '#/components/schemas/CategoryEnum'
+          default: other
+        title:
+          type: string
+          maxLength: 200
+        file:
+          type: string
+          format: binary
+      required:
+      - file
+      - owner_id
+      - owner_type
+    EnrollExistingRequest:
+      type: object
+      properties:
+        student:
+          type: integer
+        class_group:
+          type: integer
+        enrollment_date:
+          type: string
+          format: date
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/KindEnum'
+          default: re_enrolment
+        previous_school:
+          type: string
+          default: ''
+          maxLength: 200
+        notes:
+          type: string
+          default: ''
+      required:
+      - class_group
+      - student
+    Enrollment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        student:
+          allOf:
+          - $ref: '#/components/schemas/EnrollmentStudent'
+          readOnly: true
+        academic_year:
+          type: integer
+          readOnly: true
+        academic_year_name:
+          type: string
+          readOnly: true
+        class_group:
+          type: integer
+          readOnly: true
+        class_name:
+          type: string
+          readOnly: true
+        level_name:
+          type: string
+          readOnly: true
+        enrollment_date:
+          type: string
+          format: date
+        kind:
+          $ref: '#/components/schemas/KindEnum'
+        status:
+          allOf:
+          - $ref: '#/components/schemas/EnrollmentStatusEnum'
+          readOnly: true
+        previous_school:
+          type: string
+          maxLength: 200
+        ended_on:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        end_reason:
+          type: string
+          readOnly: true
+        transfer_to:
+          type: string
+          readOnly: true
+          description: School the student left for.
+        notes:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - academic_year
+      - academic_year_name
+      - class_group
+      - class_name
+      - created_at
+      - end_reason
+      - ended_on
+      - enrollment_date
+      - id
+      - level_name
+      - status
+      - student
+      - transfer_to
+    EnrollmentBrief:
+      type: object
+      properties:
+        id:
+          type: integer
+        status:
+          type: string
+        kind:
+          type: string
+        enrollment_date:
+          type: string
+          format: date
+        ended_on:
+          type: string
+          format: date
+          nullable: true
+        academic_year:
+          type: integer
+        academic_year_name:
+          type: string
+        class_group:
+          type: integer
+        class_name:
+          type: string
+        level_name:
+          type: string
+      required:
+      - academic_year
+      - academic_year_name
+      - class_group
+      - class_name
+      - ended_on
+      - enrollment_date
+      - id
+      - kind
+      - level_name
+      - status
+    EnrollmentStatusEnum:
+      enum:
+      - active
+      - class_changed
+      - withdrawn
+      - completed
+      - cancelled
+      type: string
+      description: |-
+        * `active` - Active
+        * `class_changed` - Moved to another class
+        * `withdrawn` - Left the school
+        * `completed` - Year completed
+        * `cancelled` - Cancelled
+    EnrollmentStudent:
+      type: object
+      properties:
+        id:
+          type: integer
+        student_number:
+          type: string
+        full_name:
+          type: string
+        gender:
+          type: string
+        date_of_birth:
+          type: string
+          format: date
+          nullable: true
+        photo_url:
+          type: string
+          nullable: true
+      required:
+      - date_of_birth
+      - full_name
+      - gender
+      - id
+      - photo_url
+      - student_number
+    GenderEnum:
+      enum:
+      - M
+      - F
+      type: string
+      description: |-
+        * `M` - Male
+        * `F` - Female
+    GrantAccessRequest:
+      type: object
+      properties:
+        role_ids:
+          type: array
+          items:
+            type: integer
+      required:
+      - role_ids
+    Guardian:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        first_name:
+          type: string
+          maxLength: 100
+        last_name:
+          type: string
+          maxLength: 100
+        full_name:
+          type: string
+          readOnly: true
+        phone:
+          type: string
+          maxLength: 30
+        alt_phone:
+          type: string
+          maxLength: 30
+        email:
+          oneOf:
+          - type: string
+            format: email
+            maxLength: 254
+          - type: string
+            maxLength: 0
+        address:
+          type: string
+        occupation:
+          type: string
+          maxLength: 100
+        students:
+          type: array
+          items:
+            $ref: '#/components/schemas/GuardianStudent'
+          readOnly: true
+      required:
+      - first_name
+      - full_name
+      - id
+      - last_name
+      - students
+    GuardianInputRequest:
+      type: object
+      description: Link an existing guardian (guardian_id) or create a new one from
+        the other fields.
+      properties:
+        guardian_id:
+          type: integer
+          nullable: true
+        first_name:
+          type: string
+          maxLength: 100
+        last_name:
+          type: string
+          maxLength: 100
+        phone:
+          type: string
+          maxLength: 30
+        alt_phone:
+          type: string
+          maxLength: 30
+        email:
+          oneOf:
+          - type: string
+            format: email
+          - type: string
+            maxLength: 0
+        address:
+          type: string
+        occupation:
+          type: string
+          maxLength: 100
+        relationship:
+          $ref: '#/components/schemas/RelationshipEnum'
+        is_primary:
+          type: boolean
+          default: false
+        is_financial_contact:
+          type: boolean
+          default: false
+      required:
+      - relationship
+    GuardianLink:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        guardian:
+          allOf:
+          - $ref: '#/components/schemas/Guardian'
+          readOnly: true
+        relationship:
+          $ref: '#/components/schemas/RelationshipEnum'
+        is_primary:
+          type: boolean
+          description: Main contact for the school.
+        is_financial_contact:
+          type: boolean
+          description: Receives invoices and payment reminders.
+      required:
+      - guardian
+      - id
+    GuardianLinkRequest:
+      type: object
+      properties:
+        relationship:
+          $ref: '#/components/schemas/RelationshipEnum'
+        is_primary:
+          type: boolean
+          description: Main contact for the school.
+        is_financial_contact:
+          type: boolean
+          description: Receives invoices and payment reminders.
+    GuardianRequest:
+      type: object
+      properties:
+        first_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        last_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        phone:
+          type: string
+          maxLength: 30
+        alt_phone:
+          type: string
+          maxLength: 30
+        email:
+          oneOf:
+          - type: string
+            format: email
+            maxLength: 254
+          - type: string
+            maxLength: 0
+        address:
+          type: string
+        occupation:
+          type: string
+          maxLength: 100
+      required:
+      - first_name
+      - last_name
+    GuardianStudent:
+      type: object
+      properties:
+        id:
+          type: integer
+        full_name:
+          type: string
+        relationship:
+          type: string
+      required:
+      - full_name
+      - id
+      - relationship
+    Homeroom:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+      required:
+      - id
+      - name
+    ImportUploadRequest:
+      type: object
+      properties:
+        file:
+          type: string
+          format: binary
+        commit:
+          type: boolean
+          default: false
+          description: false = check only; true = save if all valid
+      required:
+      - file
+    KindEnum:
+      enum:
+      - new
+      - re_enrolment
+      - transfer_in
+      type: string
+      description: |-
+        * `new` - New student
+        * `re_enrolment` - Re-enrolment
+        * `transfer_in` - Transfer from another school
     LanguageEnum:
       enum:
       - fr
@@ -681,6 +3930,51 @@ components:
       description: |-
         * `fr` - Français
         * `en` - Anglais
+    Level:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 50
+        order:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          description: Position in the school, lowest first.
+        cycle:
+          $ref: '#/components/schemas/CycleEnum'
+        is_active:
+          type: boolean
+        class_count:
+          type: integer
+          readOnly: true
+      required:
+      - class_count
+      - id
+      - name
+    LevelRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        order:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          description: Position in the school, lowest first.
+        cycle:
+          $ref: '#/components/schemas/CycleEnum'
+        is_active:
+          type: boolean
+      required:
+      - name
     LoginRequest:
       type: object
       properties:
@@ -800,6 +4094,59 @@ components:
       - has_password
       - id
       - username
+    NewStudentRequest:
+      type: object
+      properties:
+        student_number:
+          type: string
+          maxLength: 30
+        first_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        last_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        gender:
+          $ref: '#/components/schemas/GenderEnum'
+        date_of_birth:
+          type: string
+          format: date
+          nullable: true
+        place_of_birth:
+          type: string
+          maxLength: 100
+        nationality:
+          type: string
+          maxLength: 60
+        phone:
+          type: string
+          maxLength: 30
+        email:
+          oneOf:
+          - type: string
+            format: email
+          - type: string
+            maxLength: 0
+        address:
+          type: string
+        notes:
+          type: string
+      required:
+      - first_name
+      - gender
+      - last_name
+    OwnerTypeEnum:
+      enum:
+      - student
+      - staff
+      - school
+      type: string
+      description: |-
+        * `student` - Student
+        * `staff` - Staff member
+        * `school` - School
     PaginatedAuditLogList:
       type: object
       required:
@@ -823,6 +4170,98 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AuditLog'
+    PaginatedClassGroupList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClassGroup'
+    PaginatedEnrollmentList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Enrollment'
+    PaginatedGuardianLinkList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/GuardianLink'
+    PaginatedGuardianList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Guardian'
     PaginatedMemberList:
       type: object
       required:
@@ -846,6 +4285,75 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Member'
+    PaginatedStaffList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Staff'
+    PaginatedStudentListList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/StudentList'
+    PaginatedSubjectList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Subject'
     PasswordResetConfirmRequest:
       type: object
       properties:
@@ -871,6 +4379,164 @@ components:
           minLength: 1
       required:
       - email
+    PatchedAcademicYearRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          description: e.g. 2026-2027
+          maxLength: 20
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        status:
+          $ref: '#/components/schemas/YearStatusEnum'
+        term_count:
+          type: integer
+          maximum: 6
+          minimum: 0
+          writeOnly: true
+    PatchedClassGroupRequest:
+      type: object
+      properties:
+        academic_year:
+          type: integer
+        level:
+          type: integer
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        room:
+          type: string
+          maxLength: 50
+        class_teacher:
+          type: integer
+          nullable: true
+        capacity:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          nullable: true
+        status:
+          $ref: '#/components/schemas/ArchiveStatusEnum'
+    PatchedClassSubjectRequest:
+      type: object
+      properties:
+        class_group:
+          type: integer
+        subject:
+          type: integer
+        teacher:
+          type: integer
+          nullable: true
+        coefficient:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
+        weekly_hours:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
+          nullable: true
+    PatchedEnrollmentRequest:
+      type: object
+      properties:
+        enrollment_date:
+          type: string
+          format: date
+        kind:
+          $ref: '#/components/schemas/KindEnum'
+        previous_school:
+          type: string
+          maxLength: 200
+        notes:
+          type: string
+    PatchedGuardianLinkUpdateRequest:
+      type: object
+      properties:
+        relationship:
+          $ref: '#/components/schemas/RelationshipEnum'
+        is_primary:
+          type: boolean
+        is_financial_contact:
+          type: boolean
+        first_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        last_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        phone:
+          type: string
+          maxLength: 30
+        alt_phone:
+          type: string
+          maxLength: 30
+        email:
+          oneOf:
+          - type: string
+            format: email
+          - type: string
+            maxLength: 0
+        address:
+          type: string
+        occupation:
+          type: string
+          maxLength: 100
+    PatchedGuardianRequest:
+      type: object
+      properties:
+        first_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        last_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        phone:
+          type: string
+          maxLength: 30
+        alt_phone:
+          type: string
+          maxLength: 30
+        email:
+          oneOf:
+          - type: string
+            format: email
+            maxLength: 254
+          - type: string
+            maxLength: 0
+        address:
+          type: string
+        occupation:
+          type: string
+          maxLength: 100
+    PatchedLevelRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        order:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          description: Position in the school, lowest first.
+        cycle:
+          $ref: '#/components/schemas/CycleEnum'
+        is_active:
+          type: boolean
     PatchedMeUpdateRequest:
       type: object
       properties:
@@ -973,6 +4639,236 @@ components:
           writeOnly: true
         settings:
           $ref: '#/components/schemas/SchoolSettingsRequest'
+    PatchedStaffRequest:
+      type: object
+      properties:
+        employee_number:
+          type: string
+          maxLength: 30
+        first_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        last_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        gender:
+          oneOf:
+          - $ref: '#/components/schemas/GenderEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        date_of_birth:
+          type: string
+          format: date
+          nullable: true
+        phone:
+          type: string
+          maxLength: 30
+        email:
+          oneOf:
+          - type: string
+            format: email
+            maxLength: 254
+          - type: string
+            maxLength: 0
+        address:
+          type: string
+        staff_type:
+          $ref: '#/components/schemas/StaffTypeEnum'
+        position:
+          type: string
+          description: Job title, e.g. Mathematics teacher.
+          maxLength: 100
+        qualification:
+          type: string
+          maxLength: 150
+        specialization:
+          type: string
+          maxLength: 150
+        employment_date:
+          type: string
+          format: date
+          nullable: true
+    PatchedStudentRequest:
+      type: object
+      properties:
+        student_number:
+          type: string
+          maxLength: 30
+        first_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        last_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        gender:
+          oneOf:
+          - $ref: '#/components/schemas/GenderEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        date_of_birth:
+          type: string
+          format: date
+          nullable: true
+        phone:
+          type: string
+          maxLength: 30
+        place_of_birth:
+          type: string
+          maxLength: 100
+        nationality:
+          type: string
+          maxLength: 60
+        email:
+          oneOf:
+          - type: string
+            format: email
+            maxLength: 254
+          - type: string
+            maxLength: 0
+        address:
+          type: string
+        notes:
+          type: string
+    PatchedSubjectRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        code:
+          type: string
+          minLength: 1
+          maxLength: 20
+        level:
+          type: integer
+          nullable: true
+        default_coefficient:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
+        is_active:
+          type: boolean
+    PatchedTermRequest:
+      type: object
+      properties:
+        academic_year:
+          type: integer
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        order:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+    PhotoRequest:
+      type: object
+      properties:
+        file:
+          type: string
+          format: binary
+      required:
+      - file
+    PrimaryGuardian:
+      type: object
+      properties:
+        id:
+          type: integer
+        full_name:
+          type: string
+        phone:
+          type: string
+        relationship:
+          type: string
+      required:
+      - full_name
+      - id
+      - phone
+      - relationship
+    PromoteRequest:
+      type: object
+      properties:
+        from_class:
+          type: integer
+        to_class:
+          type: integer
+        enrollment_ids:
+          type: array
+          items:
+            type: integer
+        date:
+          type: string
+          format: date
+      required:
+      - from_class
+      - to_class
+    PromoteResult:
+      type: object
+      properties:
+        promoted:
+          type: integer
+        skipped:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+      required:
+      - promoted
+      - skipped
+    RegistrationRequest:
+      type: object
+      description: 'New enrolment in one request: a new student (or an existing one),
+        guardians and the class.'
+      properties:
+        student_id:
+          type: integer
+          nullable: true
+        student:
+          $ref: '#/components/schemas/NewStudentRequest'
+        guardians:
+          type: array
+          items:
+            $ref: '#/components/schemas/GuardianInputRequest'
+        class_group:
+          type: integer
+        enrollment_date:
+          type: string
+          format: date
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/KindEnum'
+          default: new
+        previous_school:
+          type: string
+          default: ''
+          maxLength: 200
+        notes:
+          type: string
+          default: ''
+      required:
+      - class_group
+    RelationshipEnum:
+      enum:
+      - father
+      - mother
+      - guardian
+      - other
+      type: string
+      description: |-
+        * `father` - Father
+        * `mother` - Mother
+        * `guardian` - Guardian
+        * `other` - Other
     Role:
       type: object
       properties:
@@ -1095,7 +4991,7 @@ components:
           readOnly: true
         status:
           allOf:
-          - $ref: '#/components/schemas/StatusEnum'
+          - $ref: '#/components/schemas/SchoolStatusEnum'
           readOnly: true
         settings:
           $ref: '#/components/schemas/SchoolSettings'
@@ -1153,7 +5049,7 @@ components:
           maxLength: 10
         ai_enabled:
           type: boolean
-    StatusEnum:
+    SchoolStatusEnum:
       enum:
       - active
       - suspended
@@ -1161,6 +5057,484 @@ components:
       description: |-
         * `active` - Active
         * `suspended` - Suspended
+    Staff:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        employee_number:
+          type: string
+          maxLength: 30
+        first_name:
+          type: string
+          maxLength: 100
+        last_name:
+          type: string
+          maxLength: 100
+        full_name:
+          type: string
+          readOnly: true
+        gender:
+          oneOf:
+          - $ref: '#/components/schemas/GenderEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        date_of_birth:
+          type: string
+          format: date
+          nullable: true
+        phone:
+          type: string
+          maxLength: 30
+        email:
+          oneOf:
+          - type: string
+            format: email
+            maxLength: 254
+          - type: string
+            maxLength: 0
+        address:
+          type: string
+        staff_type:
+          $ref: '#/components/schemas/StaffTypeEnum'
+        position:
+          type: string
+          description: Job title, e.g. Mathematics teacher.
+          maxLength: 100
+        qualification:
+          type: string
+          maxLength: 150
+        specialization:
+          type: string
+          maxLength: 150
+        employment_date:
+          type: string
+          format: date
+          nullable: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/ArchiveStatusEnum'
+          readOnly: true
+        photo_url:
+          type: string
+          nullable: true
+          readOnly: true
+        has_access:
+          type: boolean
+          readOnly: true
+        assignments:
+          allOf:
+          - $ref: '#/components/schemas/Assignments'
+          readOnly: true
+        archived_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - archived_at
+      - assignments
+      - created_at
+      - first_name
+      - full_name
+      - has_access
+      - id
+      - last_name
+      - photo_url
+      - status
+    StaffRequest:
+      type: object
+      properties:
+        employee_number:
+          type: string
+          maxLength: 30
+        first_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        last_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        gender:
+          oneOf:
+          - $ref: '#/components/schemas/GenderEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        date_of_birth:
+          type: string
+          format: date
+          nullable: true
+        phone:
+          type: string
+          maxLength: 30
+        email:
+          oneOf:
+          - type: string
+            format: email
+            maxLength: 254
+          - type: string
+            maxLength: 0
+        address:
+          type: string
+        staff_type:
+          $ref: '#/components/schemas/StaffTypeEnum'
+        position:
+          type: string
+          description: Job title, e.g. Mathematics teacher.
+          maxLength: 100
+        qualification:
+          type: string
+          maxLength: 150
+        specialization:
+          type: string
+          maxLength: 150
+        employment_date:
+          type: string
+          format: date
+          nullable: true
+      required:
+      - first_name
+      - last_name
+    StaffTypeEnum:
+      enum:
+      - teacher
+      - administrative
+      - support
+      type: string
+      description: |-
+        * `teacher` - Teacher
+        * `administrative` - Administrative
+        * `support` - Support
+    Student:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        student_number:
+          type: string
+          maxLength: 30
+        first_name:
+          type: string
+          maxLength: 100
+        last_name:
+          type: string
+          maxLength: 100
+        full_name:
+          type: string
+          readOnly: true
+        gender:
+          oneOf:
+          - $ref: '#/components/schemas/GenderEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        date_of_birth:
+          type: string
+          format: date
+          nullable: true
+        phone:
+          type: string
+          maxLength: 30
+        status:
+          allOf:
+          - $ref: '#/components/schemas/ArchiveStatusEnum'
+          readOnly: true
+        photo_url:
+          type: string
+          nullable: true
+          readOnly: true
+        current_enrollment:
+          allOf:
+          - $ref: '#/components/schemas/EnrollmentBrief'
+          nullable: true
+          readOnly: true
+        primary_guardian:
+          allOf:
+          - $ref: '#/components/schemas/PrimaryGuardian'
+          nullable: true
+          readOnly: true
+        place_of_birth:
+          type: string
+          maxLength: 100
+        nationality:
+          type: string
+          maxLength: 60
+        email:
+          oneOf:
+          - type: string
+            format: email
+            maxLength: 254
+          - type: string
+            maxLength: 0
+        address:
+          type: string
+        notes:
+          type: string
+        archived_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        guardians:
+          type: array
+          items:
+            $ref: '#/components/schemas/GuardianLink'
+          readOnly: true
+        enrollments:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnrollmentBrief'
+          readOnly: true
+      required:
+      - archived_at
+      - created_at
+      - current_enrollment
+      - enrollments
+      - first_name
+      - full_name
+      - guardians
+      - id
+      - last_name
+      - photo_url
+      - primary_guardian
+      - status
+    StudentList:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        student_number:
+          type: string
+          maxLength: 30
+        first_name:
+          type: string
+          maxLength: 100
+        last_name:
+          type: string
+          maxLength: 100
+        full_name:
+          type: string
+          readOnly: true
+        gender:
+          oneOf:
+          - $ref: '#/components/schemas/GenderEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        date_of_birth:
+          type: string
+          format: date
+          nullable: true
+        phone:
+          type: string
+          maxLength: 30
+        status:
+          $ref: '#/components/schemas/ArchiveStatusEnum'
+        photo_url:
+          type: string
+          nullable: true
+          readOnly: true
+        current_enrollment:
+          allOf:
+          - $ref: '#/components/schemas/EnrollmentBrief'
+          nullable: true
+          readOnly: true
+        primary_guardian:
+          allOf:
+          - $ref: '#/components/schemas/PrimaryGuardian'
+          nullable: true
+          readOnly: true
+      required:
+      - current_enrollment
+      - first_name
+      - full_name
+      - id
+      - last_name
+      - photo_url
+      - primary_guardian
+      - student_number
+    StudentRequest:
+      type: object
+      properties:
+        student_number:
+          type: string
+          maxLength: 30
+        first_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        last_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        gender:
+          oneOf:
+          - $ref: '#/components/schemas/GenderEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        date_of_birth:
+          type: string
+          format: date
+          nullable: true
+        phone:
+          type: string
+          maxLength: 30
+        place_of_birth:
+          type: string
+          maxLength: 100
+        nationality:
+          type: string
+          maxLength: 60
+        email:
+          oneOf:
+          - type: string
+            format: email
+            maxLength: 254
+          - type: string
+            maxLength: 0
+        address:
+          type: string
+        notes:
+          type: string
+      required:
+      - first_name
+      - last_name
+    Subject:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        code:
+          type: string
+          maxLength: 20
+        level:
+          type: integer
+          nullable: true
+        level_name:
+          type: string
+          readOnly: true
+        default_coefficient:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
+        is_active:
+          type: boolean
+      required:
+      - code
+      - id
+      - level_name
+      - name
+    SubjectRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        code:
+          type: string
+          minLength: 1
+          maxLength: 20
+        level:
+          type: integer
+          nullable: true
+        default_coefficient:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
+        is_active:
+          type: boolean
+      required:
+      - code
+      - name
+    Term:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        academic_year:
+          type: integer
+        name:
+          type: string
+          maxLength: 50
+        order:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+      required:
+      - academic_year
+      - end_date
+      - id
+      - name
+      - order
+      - start_date
+    TermRequest:
+      type: object
+      properties:
+        academic_year:
+          type: integer
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        order:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+      required:
+      - academic_year
+      - end_date
+      - name
+      - order
+      - start_date
+    WithdrawRequest:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 255
+        transfer_to:
+          type: string
+          default: ''
+          maxLength: 200
+      required:
+      - reason
+    YearStatusEnum:
+      enum:
+      - open
+      - closed
+      type: string
+      description: |-
+        * `open` - Open
+        * `closed` - Closed
   securitySchemes:
     jwtAuth:
       type: http

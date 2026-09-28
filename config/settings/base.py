@@ -31,6 +31,13 @@ INSTALLED_APPS = [
     "apps.schools",
     "apps.accounts",
     "apps.audit",
+    "apps.people",
+    "apps.academics",
+    "apps.enrollments",
+    "apps.documents",
+    "apps.search",
+    "apps.dashboard",
+    "apps.imports",
 ]
 
 MIDDLEWARE = [
@@ -178,7 +185,16 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
     "COMPONENT_SPLIT_REQUEST": True,
-    "ENUM_NAME_OVERRIDES": {"LanguageEnum": "apps.accounts.models.User.Language"},
+    # Fixed prefix so operation names and tags are identical whether the docs endpoints are enabled or not.
+    "SCHEMA_PATH_PREFIX": r"/api/v1",
+    "ENUM_NAME_OVERRIDES": {
+        "LanguageEnum": "apps.accounts.models.User.Language",
+        "GenderEnum": "apps.people.models.Gender",
+        "SchoolStatusEnum": "apps.schools.models.School.Status",
+        "ArchiveStatusEnum": "apps.people.models.Student.Status",
+        "YearStatusEnum": "apps.academics.models.AcademicYear.Status",
+        "EnrollmentStatusEnum": "apps.enrollments.models.Enrollment.Status",
+    },
 }
 
 LOGGING = {

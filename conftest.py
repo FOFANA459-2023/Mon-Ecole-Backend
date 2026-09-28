@@ -1,3 +1,5 @@
+from datetime import date
+
 import pytest
 from django.core.cache import cache
 from rest_framework.test import APIClient
@@ -38,6 +40,66 @@ def make_member(db):
         membership = Membership.objects.create(user=user, school=school)
         membership.roles.set(Role.objects.filter(school=school, key__in=role_keys))
         return user
+
+    return _make
+
+
+@pytest.fixture
+def year(school):
+    from apps.academics.services import create_academic_year
+
+    return create_academic_year(
+        school, name="2026-2027", start_date=date(2026, 9, 1), end_date=date(2027, 6, 30), term_count=3
+    )
+
+
+@pytest.fixture
+def level(school):
+    from apps.academics.models import Level
+
+    return Level.objects.create(school=school, name="7ème année", order=7)
+
+
+@pytest.fixture
+def make_class(school, year, level):
+    from apps.academics.models import ClassGroup
+
+    def _make(name="7ème A", *, capacity=None, academic_year=None, class_level=None, **extra):
+        return ClassGroup.objects.create(
+            school=school,
+            academic_year=academic_year or year,
+            level=class_level or level,
+            name=name,
+            capacity=capacity,
+            **extra,
+        )
+
+    return _make
+
+
+@pytest.fixture
+def make_student(school):
+    from apps.people.services import create_student
+
+    def _make(first_name="Awa", last_name="Diallo", *, target_school=None, **extra):
+        return create_student(
+            target_school or school,
+            data={"first_name": first_name, "last_name": last_name, "gender": "F", **extra},
+        )
+
+    return _make
+
+
+@pytest.fixture
+def make_staff(school):
+    from apps.people.services import create_staff
+
+    def _make(first_name="Mamadou", last_name="Barry", *, user=None, **extra):
+        staff = create_staff(school, data={"first_name": first_name, "last_name": last_name, **extra})
+        if user is not None:
+            staff.user = user
+            staff.save()
+        return staff
 
     return _make
 

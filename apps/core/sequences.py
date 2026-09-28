@@ -18,6 +18,22 @@ def next_value(school, key: str, year: int) -> int:
         return seq.last_value
 
 
+def reserve_values(school, key: str, year: int, count: int) -> int:
+    """Reserve `count` consecutive values at once (bulk imports); returns the first one."""
+    with transaction.atomic():
+        seq = Sequence.objects.select_for_update().filter(school=school, key=key, year=year).first()
+        if seq is None:
+            try:
+                with transaction.atomic():
+                    seq = Sequence.objects.create(school=school, key=key, year=year)
+            except IntegrityError:
+                seq = Sequence.objects.select_for_update().get(school=school, key=key, year=year)
+        first = seq.last_value + 1
+        seq.last_value += count
+        seq.save(update_fields=["last_value"])
+        return first
+
+
 def format_number(prefix: str, year: int, value: int, width: int = 6) -> str:
     return f"{prefix}-{year}-{value:0{width}d}"
 

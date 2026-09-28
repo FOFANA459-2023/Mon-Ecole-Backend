@@ -72,6 +72,64 @@ class TestTenantIsolation:
         assert response.status_code == 404
 
 
+@pytest.mark.django_db
+def test_every_phase_2_record_of_another_school_is_invisible(school, other_school, make_member, client_for):
+    """Build one record of each kind in another school and read it with this school's super admin."""
+    from datetime import date
+
+    from apps.academics.models import ClassGroup, ClassSubject, Level, Subject
+    from apps.academics.services import create_academic_year
+    from apps.documents.models import Document
+    from apps.enrollments.services import enroll
+    from apps.people.services import create_staff, create_student, link_guardian
+
+    year = create_academic_year(
+        other_school, name="2026-2027", start_date=date(2026, 9, 1), end_date=date(2027, 6, 30), term_count=3
+    )
+    level = Level.objects.create(school=other_school, name="CP")
+    class_group = ClassGroup.objects.create(school=other_school, academic_year=year, level=level, name="CP A")
+    subject = Subject.objects.create(school=other_school, name="Maths", code="M")
+    class_subject = ClassSubject.objects.create(school=other_school, class_group=class_group, subject=subject)
+    student = create_student(other_school, data={"first_name": "A", "last_name": "B"})
+    guardian = link_guardian(
+        student, guardian_data={"first_name": "C", "last_name": "D", "phone": "1"}
+    ).guardian
+    staff = create_staff(other_school, data={"first_name": "E", "last_name": "F"})
+    enrolment = enroll(student, class_group)
+    document = Document.objects.create(
+        school=other_school, owner_type="student", owner_id=student.pk, title="x", file="x.pdf"
+    )
+
+    client = client_for(make_member(school, "super_admin"), school)
+    urls = [
+        f"/api/v1/academic-years/{year.pk}/",
+        f"/api/v1/terms/{year.terms.first().pk}/",
+        f"/api/v1/levels/{level.pk}/",
+        f"/api/v1/classes/{class_group.pk}/",
+        f"/api/v1/subjects/{subject.pk}/",
+        f"/api/v1/class-subjects/{class_subject.pk}/",
+        f"/api/v1/students/{student.pk}/",
+        f"/api/v1/students/{student.pk}/card/",
+        f"/api/v1/guardians/{guardian.pk}/",
+        f"/api/v1/staff/{staff.pk}/",
+        f"/api/v1/enrollments/{enrolment.pk}/",
+        f"/api/v1/enrollments/{enrolment.pk}/form/",
+        f"/api/v1/documents/{document.pk}/download/",
+    ]
+    for url in urls:
+        assert client.get(url).status_code == 404, url
+    assert (
+        client.patch(f"/api/v1/students/{student.pk}/", {"first_name": "Z"}, format="json").status_code == 404
+    )
+    assert (
+        client.post(
+            f"/api/v1/enrollments/{enrolment.pk}/withdraw/", {"reason": "x"}, format="json"
+        ).status_code
+        == 404
+    )
+    assert client.get("/api/v1/students/").data["count"] == 0
+
+
 class _View:
     def __init__(self, action=None, mapping=None):
         self.action = action

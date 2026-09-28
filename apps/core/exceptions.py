@@ -1,3 +1,4 @@
+from django.db.models import ProtectedError, RestrictedError
 from django.utils.translation import gettext_lazy as _
 from rest_framework import status
 from rest_framework.exceptions import APIException, ValidationError
@@ -25,8 +26,16 @@ def _flatten(value, prefix="") -> dict[str, list[str]]:
     return {prefix: [str(item) for item in items]}
 
 
+class InUse(APIException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_detail = _("This record is still in use and cannot be deleted. Archive it instead.")
+    default_code = "in_use"
+
+
 def api_exception_handler(exc, context):
     """Return every API error as {code, message, fields} so the frontend has one shape to handle."""
+    if isinstance(exc, ProtectedError | RestrictedError):
+        exc = InUse()
     response = exception_handler(exc, context)
     if response is None:
         return None

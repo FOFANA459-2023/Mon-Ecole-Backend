@@ -14,3 +14,5 @@ gunicorn>=23
 whitenoise>=6.9
 sentry-sdk[django,celery]>=2.20
 requests>=2.32
+reportlab>=4.2
+openpyxl>=3.1

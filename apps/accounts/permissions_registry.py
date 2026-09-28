@@ -28,7 +28,15 @@ MODULES: list[tuple[str, str, list[tuple[str, str]]]] = [
             ("enrollments.cancel", "Cancel enrolments"),
         ],
     ),
-    ("classes", "Classes", [("classes.view", "View classes"), ("classes.manage", "Manage classes")]),
+    (
+        "classes",
+        "Classes",
+        [
+            ("classes.view", "View classes"),
+            ("classes.view_all", "See every class and its students (otherwise only assigned classes)"),
+            ("classes.manage", "Manage classes"),
+        ],
+    ),
     ("subjects", "Subjects", [("subjects.view", "View subjects"), ("subjects.manage", "Manage subjects")]),
     (
         "staff",
@@ -124,13 +132,28 @@ SYSTEM_ROLES: dict[str, dict] = {
         "name": "Administrative Staff",
         "description": "Student registration, records, classes and administrative functions.",
         "permissions": _codes("dashboard", "students", "enrollments", "administration")
-        + ["classes.view", "subjects.view", "staff.view", "attendance.view", "reports.view"],
+        + [
+            "classes.view",
+            "classes.view_all",
+            "subjects.view",
+            "staff.view",
+            "attendance.view",
+            "reports.view",
+        ],
     },
     "accountant": {
         "name": "Accountant",
         "description": "Fees, payments, balances, receipts, cash register and financial reports.",
         "permissions": _codes("finance", "cash")
-        + ["dashboard.view", "students.view", "enrollments.view", "reports.view", "reports.export"],
+        + [
+            "dashboard.view",
+            "students.view",
+            "enrollments.view",
+            "classes.view",
+            "classes.view_all",
+            "reports.view",
+            "reports.export",
+        ],
     },
     "teacher": {
         "name": "Teacher",
