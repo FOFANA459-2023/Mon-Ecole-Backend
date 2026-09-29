@@ -70,7 +70,7 @@ jobs:
           # Supply chain: a software bill of materials and build provenance travel with the image.
           sbom: true
           provenance: mode=max
-      - uses: sigstore/cosign-installer@v4
+      - uses: sigstore/cosign-installer@v4.1.2
       - name: Sign the image (keyless, Sigstore)
         env:
           DIGEST: ${{ steps.build.outputs.digest }}
