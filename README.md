@@ -18,7 +18,7 @@ This repository is the **Django REST API** (plus Celery worker and beat). The we
 | 2 | Core school management: students, guardians, enrolment, classes, subjects, staff, documents, import, search | Built |
 | 3–7 | Finance, academics, reports & notifications, AI, hardening & go-live | Planned |
 
-Still to do before the first deployment: Terraform for AWS + Cloudflare (the deploy pipeline is ready and waits for it), Sentry/PostHog keys.
+Hosting today: a free-tier production server on AWS (one EC2 instance, [infra/aws](infra/aws/README.md)) with Supabase Free. The planned ECS Fargate setup comes before go-live; the deploy workflow supports both.
 
 ## Stack
 
@@ -39,6 +39,8 @@ apps/documents/     files attached to students, staff or the school
 apps/imports/       Excel/CSV import of students and staff
 apps/search/        global search
 apps/dashboard/     dashboard figures
+infra/aws/          Terraform for the free-tier production server (EC2, S3, ECR, GitHub deploy role)
+deploy/ec2/         Docker Compose stack and deploy script run on that server
 openapi.yaml        generated API schema (the web app generates its TypeScript types from it)
 docs/               build plan, permission matrix
 Dockerfile          production image (API, worker and beat use the same image)
@@ -77,8 +79,8 @@ Demo accounts (all `@monecole.test`): `admin` (Super Administrator in both demo 
 ## Branches and pull requests
 
 `main` is protected: nothing reaches it without a pull request whose checks all pass. Work on `develop` (or a
-feature branch from it), push, and open a pull request into `main`. Merging to `main` deploys to staging; a
-`v*` tag deploys to production.
+feature branch from it), push, and open a pull request into `main`. Merging to `main` deploys to production (as does a
+`v*` tag).
 
 ```bash
 git switch develop && git pull
@@ -129,15 +131,17 @@ DATABASE_URL= .venv/Scripts/python manage.py spectacular --lang en --file openap
 | Workflow | When | What |
 |---|---|---|
 | `ci.yml` | every pull request | the quality and security gates above (lint, types, tests, SAST, dependency and secret scans, Docker image checks, DAST) — all required before merging to `main` |
-| `cd.yml` | push to `main`, tags `v*` | runs CI, then builds the image for `linux/arm64` + `linux/amd64`, publishes it to `ghcr.io/fofana459-2023/mon-ecole-backend` (tags: `sha-…`, `main`, `latest`, version) with an SBOM and build provenance, and signs it (Sigstore/cosign); then deploys `main` to **staging** and `v*` tags to **production** |
+| `cd.yml` | push to `main`, tags `v*` | runs CI, then builds the image for `linux/arm64` + `linux/amd64`, publishes it to `ghcr.io/fofana459-2023/mon-ecole-backend` (tags: `sha-…`, `main`, `latest`, version) with an SBOM and build provenance, and signs it (Sigstore/cosign); then deploys `main` and `v*` tags to **production** |
 | `deploy.yml` | called by CD, or by hand from the Actions tab | copies the image to ECR, runs `migrate` as a one-off ECS task, rolls the api/worker/beat services and waits until they are stable. Run it by hand with an older image tag to roll back |
 
 ### Turning on deployment (once the AWS infrastructure exists)
 
+Today: the free-tier EC2 server — follow [infra/aws/README.md](infra/aws/README.md). The steps below are for the planned ECS setup.
+
 1. **Settings → Environments**: create `staging` and `production` (add required reviewers to `production` for a manual approval gate).
 2. In each environment, add the variables listed at the top of [.github/workflows/deploy.yml](.github/workflows/deploy.yml) (`AWS_REGION`, `AWS_DEPLOY_ROLE_ARN`, `ECR_REPOSITORY`, `ECS_CLUSTER`, `ECS_SERVICES`, `ECS_SUBNETS`, `ECS_SECURITY_GROUPS`).
 3. **Settings → Secrets and variables → Actions → Variables** (repository level): set `DEPLOY_STAGING=true` and, when ready, `DEPLOY_PRODUCTION=true`. Until then CD stops after publishing the image.
-4. Release to production by pushing a tag: `git tag v1.0.0 && git push origin v1.0.0`.
+4. Production deploys on every push to `main` and on `v*` tags. To release by tag only, drop the `main` condition of `deploy-production` in [cd.yml](.github/workflows/cd.yml).
 
 The ECS task definitions must set `DJANGO_SETTINGS_MODULE=config.settings.production` (the image default), `DJANGO_SECRET_KEY`, `DATABASE_URL`, `REDIS_URL`, `AWS_STORAGE_BUCKET_NAME` and the other production variables in [.env.example](.env.example). Give the `beat` service a deployment of minimum 0 % / maximum 100 % so two schedulers never run at once.
 

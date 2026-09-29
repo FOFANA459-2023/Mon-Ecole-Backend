@@ -1,7 +1,9 @@
 # Delivery pipeline:
-#   push to main  → CI → multi-arch image on GHCR → deploy to staging   (when DEPLOY_STAGING = true)
-#   tag v1.2.3    → CI → multi-arch image on GHCR → deploy to production (when DEPLOY_PRODUCTION = true;
-#                                                   add required reviewers to the "production" environment)
+#   push to main  → CI → multi-arch image on GHCR → deploy to production (when DEPLOY_PRODUCTION = true)
+#                                                   and to staging     (when DEPLOY_STAGING = true)
+#   tag v1.2.3    → CI → multi-arch image on GHCR → deploy to production (when DEPLOY_PRODUCTION = true)
+# While there is a single server, main goes straight to production; to release by tag only, drop the main
+# condition of deploy-production (and add required reviewers to the "production" environment).
 # Deploy settings live in GitHub → Settings → Environments; see README "Deployment".
 name: CD
 
@@ -88,7 +90,7 @@ jobs:
 
   deploy-production:
     needs: image
-    if: startsWith(github.ref, 'refs/tags/v') && vars.DEPLOY_PRODUCTION == 'true'
+    if: (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')) && vars.DEPLOY_PRODUCTION == 'true'
     uses: ./.github/workflows/deploy.yml
     with:
       environment: production
