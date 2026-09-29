@@ -1,3 +1,5 @@
+from typing import Any
+
 from django.db import transaction
 from django.http import FileResponse
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -18,7 +20,7 @@ from apps.people.models import StaffMember, Student
 from .models import Document
 
 # (read permission, write permission) per owner type
-OWNER_PERMISSIONS = {
+OWNER_PERMISSIONS: dict[str, tuple[str, str]] = {
     Document.OwnerType.STUDENT: ("students.view", "students.update"),
     Document.OwnerType.STAFF: ("staff.view", "staff.update"),
     Document.OwnerType.SCHOOL: ("administration.view", "administration.manage"),
@@ -61,15 +63,16 @@ class DocumentViewSet(
 
     serializer_class = DocumentSerializer
     permission_classes = [IsAuthenticated, HasSchoolPermission]
-    required_permissions = {"*": []}  # checked per owner below
+    required_permissions: dict[str, list[str]] = {"*": []}  # checked per owner below
     parser_classes = [MultiPartParser, FormParser]
     pagination_class = None
 
     def _check_owner(self, owner_type: str, owner_id: int, *, write: bool) -> None:
+        request: Any = self.request  # school and permission_codes are set by HasSchoolPermission
         read_perm, write_perm = OWNER_PERMISSIONS[owner_type]
-        if (write_perm if write else read_perm) not in self.request.permission_codes:
+        if (write_perm if write else read_perm) not in request.permission_codes:
             raise PermissionDenied()
-        school = self.request.school
+        school = request.school
         if owner_type == Document.OwnerType.STUDENT:
             if not Student.objects.filter(school=school, pk=owner_id).exists():
                 raise NotFound()

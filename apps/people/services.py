@@ -172,7 +172,7 @@ def link_guardian(
     school = student.school
     if guardian is None:
         guardian = Guardian.objects.create(
-            school=school, created_by=getattr(request, "user", None), **guardian_data
+            school=school, created_by=getattr(request, "user", None), **(guardian_data or {})
         )
     if StudentGuardian.objects.filter(student=student, guardian=guardian).exists():
         raise ValidationError(_("This guardian is already linked to the student."))

@@ -123,7 +123,7 @@ def student_export_rows(students, language: str):
 
 
 class StudentViewSet(TenantModelViewSet):
-    queryset = Student.objects.prefetch_related(ACTIVE_ENROLLMENTS, GUARDIAN_LINKS)
+    queryset = Student.objects.prefetch_related(ACTIVE_ENROLLMENTS, GUARDIAN_LINKS)  # type: ignore[arg-type]
     audit_module = "students"
     filterset_class = StudentFilter
     search_fields = [
@@ -266,7 +266,7 @@ class StudentViewSet(TenantModelViewSet):
 
 class GuardianViewSet(TenantModelViewSet):
     queryset = Guardian.objects.prefetch_related(
-        Prefetch("student_links", queryset=StudentGuardian.objects.select_related("student"))
+        Prefetch("student_links", queryset=StudentGuardian.objects.select_related("student"))  # type: ignore[arg-type]
     )
     serializer_class = GuardianSerializer
     audit_module = "students"

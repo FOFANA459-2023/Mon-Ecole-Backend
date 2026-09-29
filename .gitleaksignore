@@ -1,0 +1,3 @@
+# Reviewed false positives (gitleaks fingerprints: commit:file:rule:line).
+# Fixture password used by a user-invitation test.
+1eb1f931e9be17fd182728570ef708b8537c9d25:apps/accounts/tests/test_users_and_roles.py:generic-api-key:73

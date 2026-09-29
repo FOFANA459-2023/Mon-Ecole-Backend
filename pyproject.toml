@@ -21,3 +21,36 @@ DJANGO_SETTINGS_MODULE = "config.settings.test"
 python_files = ["test_*.py"]
 addopts = "-q"
 filterwarnings = ["ignore:No directory at:UserWarning"]
+
+[tool.coverage.run]
+source = ["apps", "config"]
+branch = true
+omit = ["**/migrations/*", "**/tests/*", "config/wsgi.py", "config/celery.py", "manage.py"]
+
+[tool.coverage.report]
+fail_under = 85
+skip_covered = true
+show_missing = true
+exclude_also = ["if TYPE_CHECKING:", "raise NotImplementedError"]
+
+[tool.mypy]
+python_version = "3.13"
+plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true
+check_untyped_defs = false
+exclude = ['migrations/', '.venv/']
+
+[[tool.mypy.overrides]]
+module = ["*.tests.*", "conftest"]
+ignore_errors = true
+
+[tool.django-stubs]
+django_settings_module = "config.settings.test"
+
+[[tool.mypy.overrides]]
+# Development-only seed data built from loosely typed literal tables.
+module = ["apps.schools.management.commands._demo_school_data"]
+ignore_errors = true

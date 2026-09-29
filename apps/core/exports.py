@@ -35,10 +35,10 @@ def tabular_response(headers: list[str], rows: list[list], file_format: str, bas
         longest = max([len(str(header))] + [len(str(r[index - 1] or "")) for r in rows[:500]])
         sheet.column_dimensions[get_column_letter(index)].width = min(max(10, longest + 2), 45)
 
-    buffer = io.BytesIO()
-    workbook.save(buffer)
+    output = io.BytesIO()
+    workbook.save(output)
     response = HttpResponse(
-        buffer.getvalue(), content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        output.getvalue(), content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
     response["Content-Disposition"] = f'attachment; filename="{basename}-{stamp}.xlsx"'
     return response

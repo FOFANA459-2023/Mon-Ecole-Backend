@@ -74,18 +74,45 @@ Then start the web app from the [Mon-Ecole](https://github.com/FOFANA459-2023/Mo
 
 Demo accounts (all `@monecole.test`): `admin` (Super Administrator in both demo schools), `directeur`, `secretariat`, `comptable`, `enseignant`, `teacher`. The demo password is set in `apps/schools/management/commands/seed_demo.py` (override with `DEMO_PASSWORD`).
 
-## Tests and checks
+## Branches and pull requests
+
+`main` is protected: nothing reaches it without a pull request whose checks all pass. Work on `develop` (or a
+feature branch from it), push, and open a pull request into `main`. Merging to `main` deploys to staging; a
+`v*` tag deploys to production.
 
 ```bash
-.venv/Scripts/python -m pytest                                   # auth, tenant isolation, permissions, audit, Phase 2 flows
-.venv/Scripts/ruff check . && .venv/Scripts/ruff format --check .
-.venv/Scripts/python manage.py makemigrations --check --dry-run
+git switch develop && git pull
+# …commit…
+git push
+gh pr create --base main --fill
 ```
+
+Install the pre-commit hooks once so most problems are caught before you push:
+
+```bash
+.venv/Scripts/pre-commit install
+```
+
+## Tests and quality gates
+
+| Suite | What it covers | Run locally |
+|---|---|---|
+| Unit + integration | services, API views, permissions, school isolation, imports, PDFs, commands (pytest, PostgreSQL in CI, random order) | `.venv/Scripts/python -m pytest` |
+| Security regression | every API route: requires sign-in, refuses members without permission, hides other schools (404); JWT forgery/expiry; cookie flags, CORS, security headers; production settings | `.venv/Scripts/python -m pytest apps/core/tests/test_security.py` |
+| Coverage | fails under 85 % (branch coverage) | `.venv/Scripts/python -m pytest --cov` |
+| Lint, format, types | ruff, mypy with the Django and DRF plugins | `.venv/Scripts/ruff check . && .venv/Scripts/ruff format --check . && .venv/Scripts/mypy .` |
+| Schema and migrations | migrations committed and applied on PostgreSQL; `openapi.yaml` matches the code | `.venv/Scripts/python manage.py makemigrations --check --dry-run` |
+| SAST | semgrep (Python, Django, secrets, Dockerfile rules) | CI |
+| Dependencies | pip-audit against known vulnerabilities; Dependabot weekly | `.venv/Scripts/pip-audit -r requirements.txt` |
+| Secrets | gitleaks over the whole git history (reviewed false positives in `.gitleaksignore`) | pre-commit |
+| Docker | hadolint, Django deployment checks inside the image, non-root user, trivy image + configuration scans | CI |
+| DAST | OWASP ZAP API scan of the production image, signed in, driven by `openapi.yaml` (injection, XSS, SSRF… fail the build; report uploaded) | CI |
+| End to end | the web app against this API: sign-in, permissions, enrolment, search, accessibility (in the Mon-Ecole repository) | Mon-Ecole CI |
 
 After changing an API serializer, regenerate the schema (CI fails if it drifts), commit it, then regenerate the web app's types (`npm run gen:api` in Mon-Ecole):
 
 ```bash
-.venv/Scripts/python manage.py spectacular --file openapi.yaml --validate
+DATABASE_URL= .venv/Scripts/python manage.py spectacular --lang en --file openapi.yaml --validate
 ```
 
 ## How the code is organised (conventions)
@@ -101,8 +128,8 @@ After changing an API serializer, regenerate the schema (CI fails if it drifts),
 
 | Workflow | When | What |
 |---|---|---|
-| `ci.yml` | every pull request | ruff, migrations committed, OpenAPI schema up to date, pytest on PostgreSQL; builds the Docker image and runs Django's deployment checks inside it |
-| `cd.yml` | push to `main`, tags `v*` | runs CI, then builds the image for `linux/arm64` + `linux/amd64` and publishes it to `ghcr.io/fofana459-2023/mon-ecole-backend` (tags: `sha-…`, `main`, `latest`, version); then deploys `main` to **staging** and `v*` tags to **production** |
+| `ci.yml` | every pull request | the quality and security gates above (lint, types, tests, SAST, dependency and secret scans, Docker image checks, DAST) — all required before merging to `main` |
+| `cd.yml` | push to `main`, tags `v*` | runs CI, then builds the image for `linux/arm64` + `linux/amd64`, publishes it to `ghcr.io/fofana459-2023/mon-ecole-backend` (tags: `sha-…`, `main`, `latest`, version) with an SBOM and build provenance, and signs it (Sigstore/cosign); then deploys `main` to **staging** and `v*` tags to **production** |
 | `deploy.yml` | called by CD, or by hand from the Actions tab | copies the image to ECR, runs `migrate` as a one-off ECS task, rolls the api/worker/beat services and waits until they are stable. Run it by hand with an older image tag to roll back |
 
 ### Turning on deployment (once the AWS infrastructure exists)

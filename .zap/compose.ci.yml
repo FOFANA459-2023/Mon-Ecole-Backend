@@ -1,0 +1,17 @@
+# Overrides docker-compose.yml for the DAST job: the scanner hits the production image (gunicorn,
+# production settings, DEBUG off) rather than the development server.
+services:
+  backend:
+    command: ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "60"]
+    volumes: !reset []
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      DJANGO_DEBUG: "False"
+      DJANGO_SECRET_KEY: ci-dast-only-secret-key-not-used-anywhere-else-0123456789
+      DJANGO_SECURE_SSL_REDIRECT: "False"
+      AWS_STORAGE_BUCKET_NAME: ci-dast-bucket
+      ALLOW_DEMO_SEED: "1"
+      JWT_ACCESS_MINUTES: ${JWT_ACCESS_MINUTES:-15}
+      # Let the scanner exercise the sign-in endpoints instead of being rate-limited (429s look like SQL injection to ZAP).
+      THROTTLE_LOGIN: 100000/min
+      THROTTLE_PASSWORD_RESET: 100000/min

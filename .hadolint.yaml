@@ -1,0 +1,5 @@
+# Debian package versions are not pinned (DL3008): security updates come from the base image digest,
+# which Dependabot bumps weekly; exact apt pins break builds whenever Debian publishes a fix.
+failure-threshold: warning
+ignored:
+  - DL3008

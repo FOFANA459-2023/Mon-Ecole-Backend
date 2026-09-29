@@ -32,7 +32,7 @@ class ImportView(APIView):
     """Check (commit=false) or import (commit=true) an Excel/CSV list of students or staff."""
 
     permission_classes = [IsAuthenticated, HasSchoolPermission]
-    required_permissions = {"post": []}
+    required_permissions: dict[str, list[str]] = {"post": []}
     parser_classes = [MultiPartParser, FormParser]
 
     @extend_schema(request={"multipart/form-data": ImportUploadSerializer}, responses={200: dict, 400: dict})
@@ -55,7 +55,7 @@ class ImportTemplateView(APIView):
     """An Excel template with the expected columns, an example row and instructions."""
 
     permission_classes = [IsAuthenticated, HasSchoolPermission]
-    required_permissions = {"get": []}
+    required_permissions: dict[str, list[str]] = {"get": []}
 
     @extend_schema(responses={(200, "application/octet-stream"): bytes})
     def get(self, request, kind):

@@ -20,6 +20,8 @@ x-backend-env: &backend-env
   EMAIL_BACKEND: django.core.mail.backends.smtp.EmailBackend
   EMAIL_HOST: mailpit
   EMAIL_PORT: "1025"
+  # Raised by the end-to-end and security test jobs, which sign in many times a minute.
+  THROTTLE_LOGIN: ${THROTTLE_LOGIN:-10/min}
 
 x-backend: &backend
   build: .

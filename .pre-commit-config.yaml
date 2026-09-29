@@ -1,0 +1,45 @@
+# Same checks as CI, before each commit:  pip install pre-commit && pre-commit install
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: [--unsafe]
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+      - id: detect-private-key
+      - id: no-commit-to-branch
+        args: [--branch, main]
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.28.0
+    hooks:
+      - id: gitleaks
+  - repo: local
+    # Tools from requirements-dev.txt, so the versions match CI.
+    hooks:
+      - id: ruff
+        name: ruff
+        entry: ruff check --fix --force-exclude
+        language: system
+        types: [python]
+      - id: ruff-format
+        name: ruff format
+        entry: ruff format --force-exclude
+        language: system
+        types: [python]
+      - id: mypy
+        name: mypy
+        entry: mypy .
+        language: system
+        types: [python]
+        pass_filenames: false
+      - id: migrations
+        name: migrations are committed
+        entry: python manage.py makemigrations --check --dry-run
+        language: system
+        pass_filenames: false
+        files: models\.py$

@@ -986,7 +986,7 @@ paths:
           type: array
           items:
             type: string
-        description: Les valeurs multiples doivent être séparées par des virgules.
+        description: Multiple values may be separated by commas.
         explode: false
         style: form
       - in: query
@@ -3928,8 +3928,8 @@ components:
       - en
       type: string
       description: |-
-        * `fr` - Français
-        * `en` - Anglais
+        * `fr` - French
+        * `en` - English
     Level:
       type: object
       properties:
@@ -4054,23 +4054,20 @@ components:
           readOnly: true
         username:
           type: string
-          title: Nom d’utilisateur
-          description: Requis. 150 caractères maximum. Uniquement des lettres, nombres
-            et les caractères « @ », « . », « + », « - » et « _ ».
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
           pattern: ^[\w.@+-]+$
           maxLength: 150
         email:
           type: string
           format: email
-          title: Adresse électronique
+          title: Email address
           maxLength: 254
         first_name:
           type: string
-          title: Prénom
           maxLength: 150
         last_name:
           type: string
-          title: Nom
           maxLength: 150
         full_name:
           type: string
@@ -4084,7 +4081,6 @@ components:
           type: string
           format: date-time
           nullable: true
-          title: Dernière connexion
         has_password:
           type: boolean
           readOnly: true
@@ -4542,11 +4538,9 @@ components:
       properties:
         first_name:
           type: string
-          title: Prénom
           maxLength: 150
         last_name:
           type: string
-          title: Nom
           maxLength: 150
         phone:
           type: string

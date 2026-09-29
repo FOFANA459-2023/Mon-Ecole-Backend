@@ -1,5 +1,11 @@
 -r requirements.txt
 pytest>=8.3
 pytest-django>=4.10
+pytest-cov>=6.0
+pytest-randomly>=3.16
 factory-boy>=3.3
 ruff>=0.9
+django-stubs[compatible-mypy]>=5.2,<5.3
+djangorestframework-stubs[compatible-mypy]>=3.16,<3.17
+pip-audit>=2.9
+pre-commit>=4.2
