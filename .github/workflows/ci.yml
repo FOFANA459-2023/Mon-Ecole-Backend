@@ -1,4 +1,14 @@
-# Checks every pull request. The CD workflow runs this same file before building and deploying main.
+# Quality and security gate for every pull request. CD runs this same file before building and deploying.
+#
+#   lint        ruff (lint + format), mypy (types)
+#   test        unit, integration and security tests on PostgreSQL, random order, coverage >= 85 %,
+#               migrations committed, OpenAPI schema up to date
+#   sast        semgrep (Python, Django, secrets, Dockerfile rules)
+#   deps        pip-audit (known vulnerabilities in dependencies)
+#   secrets     gitleaks (whole git history)
+#   image       hadolint, build, Django deployment checks in the image, non-root check,
+#               trivy (image vulnerabilities + Dockerfile misconfiguration)
+#   dast        OWASP ZAP API scan of the running stack, signed in, driven by openapi.yaml
 name: CI
 
 on:
@@ -13,9 +23,31 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  PYTHON_VERSION: "3.13"
+
 jobs:
+  lint:
+    name: Lint and types
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DJANGO_SETTINGS_MODULE: config.settings.test
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements*.txt
+      - run: pip install -r requirements-dev.txt
+      - name: Ruff
+        run: ruff check --output-format=github . && ruff format --check .
+      - name: Mypy
+        run: mypy .
+
   test:
-    name: Lint, schema and tests (PostgreSQL)
+    name: Tests (PostgreSQL)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     services:
@@ -34,33 +66,84 @@ jobs:
       DJANGO_SECRET_KEY: ci-only-secret-key-long-enough-for-hmac-sha256
       DJANGO_SETTINGS_MODULE: config.settings.test
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
-          python-version: "3.13"
+          python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
           cache-dependency-path: requirements*.txt
       - run: pip install -r requirements-dev.txt
-      - name: Lint
-        run: ruff check . && ruff format --check .
       - name: Migrations are committed
         run: python manage.py makemigrations --check --dry-run
+      - name: Migrations apply cleanly to PostgreSQL
+        run: python manage.py migrate --noinput && python manage.py migrate --check
       - name: OpenAPI schema is up to date
+        # Generated without a database URL and in English so the output never depends on the environment.
+        env:
+          DATABASE_URL: ""
         run: |
-          python manage.py spectacular --file /tmp/openapi.yaml --validate --fail-on-warn
+          python manage.py spectacular --lang en --file /tmp/openapi.yaml --validate --fail-on-warn
           diff -u openapi.yaml /tmp/openapi.yaml
-      - name: Tests
-        run: pytest
+      - name: Tests with coverage (random order)
+        run: pytest --cov --cov-report=term --cov-report=xml --junitxml=junit.xml
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports
+          path: |
+            coverage.xml
+            junit.xml
+          retention-days: 14
+
+  sast:
+    name: SAST (semgrep)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      image: semgrep/semgrep:latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: >-
+          semgrep scan --metrics off --error
+          --config p/python --config p/django --config p/secrets --config p/dockerfile
+          --exclude "**/migrations/**"
+
+  deps:
+    name: Dependency vulnerabilities (pip-audit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - run: pip install pip-audit
+      - run: pip-audit --requirement requirements.txt --requirement requirements-dev.txt --progress-spinner off --desc on
+
+  secrets:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Scan the whole history
+        run: >-
+          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest
+          git /repo --redact --no-banner --gitleaks-ignore-path /repo/.gitleaksignore
 
   image:
-    name: Docker image builds and boots
+    name: Docker image (lint, build, scan)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
+      - uses: actions/checkout@v7
+      - name: Hadolint
+        run: docker run --rm -v "$PWD:/w" -w /w hadolint/hadolint:latest-debian hadolint Dockerfile
+      - uses: docker/setup-buildx-action@v4
       - name: Build (amd64)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           load: true
@@ -74,3 +157,64 @@ jobs:
             -e DJANGO_ALLOWED_HOSTS=api.example.org \
             -e AWS_STORAGE_BUCKET_NAME=ci-bucket \
             mon-ecole-backend:ci python manage.py check --deploy --fail-level WARNING
+      - name: Runs as a non-root user
+        run: test "$(docker run --rm mon-ecole-backend:ci id -u)" != "0"
+      - name: Trivy (image vulnerabilities)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: mon-ecole-backend:ci
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+      - name: Trivy (Dockerfile and compose misconfiguration)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: config
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+
+  dast:
+    name: DAST (OWASP ZAP API scan)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+      - name: Start the stack
+        env:
+          JWT_ACCESS_MINUTES: "60"
+        run: |
+          docker compose -f docker-compose.yml -f .zap/compose.ci.yml up -d --build --wait db valkey backend
+          docker compose exec -T backend python manage.py migrate --noinput
+          docker compose exec -T backend python manage.py seed_demo --password "$DEMO_PASSWORD"
+        # Throwaway password for the CI demo data only.
+      - name: Sign in as the demo director
+        id: auth
+        run: |
+          token=$(curl -fsS -H 'Content-Type: application/json' \
+            -d "{\"login\":\"directeur@monecole.test\",\"password\":\"$DEMO_PASSWORD\"}" \
+            http://localhost:8000/api/v1/auth/login/ | jq -r .access)
+          echo "::add-mask::$token"
+          echo "token=$token" >> "$GITHUB_OUTPUT"
+      - name: ZAP API scan
+        env:
+          ZAP_AUTH_HEADER: Authorization
+          ZAP_AUTH_HEADER_VALUE: Bearer ${{ steps.auth.outputs.token }}
+        run: |
+          mkdir -p zap && cp openapi.yaml .zap/rules.tsv zap/ && chmod -R 777 zap
+          docker run --rm --network host -v "$PWD/zap:/zap/wrk:rw" \
+            -e ZAP_AUTH_HEADER -e ZAP_AUTH_HEADER_VALUE \
+            ghcr.io/zaproxy/zaproxy:stable zap-api-scan.py \
+            -t openapi.yaml -f openapi -O http://localhost:8000 \
+            -c rules.tsv -I -r zap-report.html -J zap-report.json \
+            -z "-config scanner.maxScanDurationInMins=20 -config scanner.maxRuleDurationInMins=3"
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: zap-report
+          path: zap/zap-report.*
+          retention-days: 14
+      - if: failure()
+        run: docker compose logs backend | tail -200
+    env:
+      DEMO_PASSWORD: ci-demo-${{ github.run_id }}-${{ github.run_attempt }}

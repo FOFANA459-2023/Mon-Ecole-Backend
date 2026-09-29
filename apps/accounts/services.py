@@ -98,7 +98,7 @@ def add_member(
     email = email.strip().lower()
     user = User.objects.filter(email__iexact=email).first()
     created_user = user is None
-    if created_user:
+    if user is None:
         user = User(
             username=email,
             email=email,

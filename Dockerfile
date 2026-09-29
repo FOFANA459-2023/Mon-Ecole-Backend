@@ -23,7 +23,8 @@ RUN useradd --create-home --uid 1000 app
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install -r requirements.txt
+# pip is removed afterwards: the app never needs it at runtime and its vendored libraries carry known CVEs.
+RUN pip install -r requirements.txt && python -m pip uninstall -y pip
 
 COPY --chown=app:app . .
 RUN DJANGO_SETTINGS_MODULE=config.settings.base DJANGO_SECRET_KEY=build-only python manage.py collectstatic --noinput

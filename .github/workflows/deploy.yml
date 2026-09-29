@@ -1,11 +1,16 @@
-# Deploy one image to an AWS ECS environment: copy it from GHCR to ECR, run the database migrations as a
-# one-off task, then roll the api, worker and beat services. Called by CD; can also be run by hand from the
-# Actions tab to redeploy or roll back (give an older image tag).
+# Deploy one image to an AWS environment: copy it from GHCR to ECR, run the database migrations, then restart
+# the api, worker and beat. Called by CD; can also be run by hand from the Actions tab to redeploy or roll back
+# (give an older image tag).
+#
+# Two targets, chosen by the environment's variables:
+#   - single EC2 instance (infra/aws, the free-tier setup): set EC2_INSTANCE_ID;
+#   - ECS Fargate services (the planned setup): leave EC2_INSTANCE_ID unset and set the ECS_* variables.
 #
 # Variables of each GitHub environment (Settings → Environments → staging / production → Variables):
 #   AWS_REGION             e.g. eu-west-3
 #   AWS_DEPLOY_ROLE_ARN    IAM role that trusts GitHub OIDC for this repository and environment
 #   ECR_REPOSITORY         e.g. 123456789012.dkr.ecr.eu-west-3.amazonaws.com/mon-ecole-backend
+#   EC2_INSTANCE_ID        (EC2 target) e.g. i-0123456789abcdef0 — `terraform output` in infra/aws lists all four
 #   ECS_CLUSTER            e.g. mon-ecole-staging
 #   ECS_SERVICES           space-separated, API first: "api worker beat"
 #   ECS_SUBNETS            comma-separated subnet ids for the migration task
@@ -48,18 +53,18 @@ jobs:
       group: deploy-${{ inputs.environment }}
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v4
-      - uses: aws-actions/configure-aws-credentials@v4
+      - uses: actions/checkout@v7
+      - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
       - uses: aws-actions/amazon-ecr-login@v2
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
       - name: Copy the image to ECR
         id: copy
         env:
@@ -69,7 +74,14 @@ jobs:
           target="$ECR_REPOSITORY:deploy-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           docker buildx imagetools create --tag "$target" "$SOURCE"
           echo "image=$target" >> "$GITHUB_OUTPUT"
-      - name: Migrate and roll out
+      - name: Migrate and restart (EC2)
+        if: vars.EC2_INSTANCE_ID != ''
+        env:
+          EC2_INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
+          DEPLOY_ENVIRONMENT: ${{ inputs.environment }}
+        run: bash .github/scripts/deploy-ec2.sh "${{ steps.copy.outputs.image }}"
+      - name: Migrate and roll out (ECS)
+        if: vars.EC2_INSTANCE_ID == ''
         env:
           ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
           ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}

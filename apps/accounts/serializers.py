@@ -112,12 +112,6 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
     new_password = serializers.CharField(trim_whitespace=False)
 
 
-class PermissionGroupSerializer(serializers.Serializer):
-    module = serializers.CharField()
-    label = serializers.CharField()
-    permissions = serializers.ListField(child=serializers.DictField())
-
-
 class RoleSerializer(serializers.ModelSerializer):
     permissions = serializers.ListField(child=serializers.CharField(), required=False)
     member_count = serializers.SerializerMethodField()

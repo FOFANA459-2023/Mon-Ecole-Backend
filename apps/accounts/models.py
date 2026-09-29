@@ -1,4 +1,4 @@
-from django.contrib.auth.models import AbstractUser, UserManager
+from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models.functions import Lower
@@ -20,8 +20,6 @@ class User(AbstractUser):
     must_change_password = models.BooleanField(default=False)
 
     REQUIRED_FIELDS = ["email"]
-
-    objects = UserManager()
 
     class Meta:
         constraints = [models.UniqueConstraint(Lower("email"), name="uniq_user_email_ci")]

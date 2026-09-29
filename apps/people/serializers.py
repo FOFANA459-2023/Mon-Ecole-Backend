@@ -221,7 +221,7 @@ class StudentSerializer(StudentListSerializer):
         history = obj.enrollments.select_related("academic_year", "class_group__level").order_by(
             "-academic_year__start_date", "-enrollment_date", "-id"
         )
-        return EnrollmentBriefSerializer(history, many=True).data
+        return list(EnrollmentBriefSerializer(history, many=True).data)
 
     def validate_student_number(self, value):
         if self.instance is not None and value and value != self.instance.student_number:

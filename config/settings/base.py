@@ -1,5 +1,6 @@
 from datetime import timedelta
 from pathlib import Path
+from typing import Any
 
 import environ
 from corsheaders.defaults import default_headers
@@ -107,7 +108,7 @@ STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
-STORAGES = {
+STORAGES: dict[str, dict[str, Any]] = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
 }
@@ -124,7 +125,10 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "EXCEPTION_HANDLER": "apps.core.exceptions.api_exception_handler",
-    "DEFAULT_THROTTLE_RATES": {"login": "10/min", "password_reset": "5/hour"},
+    "DEFAULT_THROTTLE_RATES": {
+        "login": env("THROTTLE_LOGIN", default="10/min"),
+        "password_reset": env("THROTTLE_PASSWORD_RESET", default="5/hour"),
+    },
 }
 
 SIMPLE_JWT = {

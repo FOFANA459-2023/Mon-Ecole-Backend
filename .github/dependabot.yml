@@ -1,18 +1,36 @@
-# Weekly dependency updates, grouped so they arrive as a few pull requests rather than dozens.
+# Weekly updates, grouped so they arrive as a few pull requests. Minor and patch versions only:
+# major upgrades (Django LTS, Python, DRF…) are planned by hand because they need code changes.
 version: 2
 updates:
   - package-ecosystem: pip
     directory: /
     schedule: { interval: weekly }
+    target-branch: develop
     groups:
       python:
-        patterns: ["*"]
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: "*"
+        update-types: [version-update:semver-major]
+      # Stay on the Django 5.2 LTS line.
+      - dependency-name: django
+        versions: [">=5.3"]
+      - dependency-name: django-stubs
+        versions: [">=5.3"]
+      - dependency-name: djangorestframework-stubs
+        versions: [">=3.17"]
   - package-ecosystem: docker
     directory: /
     schedule: { interval: weekly }
+    target-branch: develop
+    ignore:
+      # The Python version is chosen deliberately (CI, Dockerfile and pyproject move together).
+      - dependency-name: python
+        update-types: [version-update:semver-major, version-update:semver-minor]
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: weekly }
+    target-branch: develop
     groups:
       actions:
         patterns: ["*"]

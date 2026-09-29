@@ -1,0 +1,50 @@
+# Production stack on a single EC2 instance (infra/aws). Copied to /opt/mon-ecole by every deploy.
+#   .env      IMAGE, API_HOST       written by remote-deploy.sh
+#   app.env   Django settings       from the SSM parameter /mon-ecole/<environment>/app-env
+name: mon-ecole
+
+x-app: &app
+  image: ${IMAGE:?set by remote-deploy.sh}
+  restart: unless-stopped
+  env_file: app.env
+  environment:
+    DJANGO_ALLOWED_HOSTS: ${API_HOST:?set by remote-deploy.sh}
+    REDIS_URL: redis://valkey:6379/0
+    # Caddy puts the visitor's address here (it ignores any value sent by the client).
+    CLIENT_IP_META_KEY: HTTP_X_REAL_IP
+  depends_on: [valkey]
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443", "443:443/udp"]
+    environment:
+      API_HOST: ${API_HOST}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on: [api]
+
+  api:
+    <<: *app
+    # Two workers fit a 2 GB instance next to Celery.
+    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 2 --timeout 60 --access-logfile -
+
+  worker:
+    <<: *app
+    command: celery -A config worker --loglevel=info --concurrency 2
+
+  beat:
+    <<: *app
+    command: celery -A config beat --loglevel=info --schedule /tmp/celerybeat-schedule
+
+  valkey:
+    image: valkey/valkey:8-alpine
+    restart: unless-stopped
+    command: valkey-server --save "" --appendonly no --maxmemory 128mb --maxmemory-policy noeviction
+
+volumes:
+  caddy-data:
+  caddy-config:

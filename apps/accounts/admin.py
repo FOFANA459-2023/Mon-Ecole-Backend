@@ -8,7 +8,7 @@ from .models import Membership, Role, User
 class UserAdmin(BaseUserAdmin):
     list_display = ["username", "email", "first_name", "last_name", "is_active", "is_superuser", "last_login"]
     fieldsets = (
-        *BaseUserAdmin.fieldsets,
+        *(BaseUserAdmin.fieldsets or ()),
         ("Mon École", {"fields": ("phone", "language", "must_change_password")}),
     )
 

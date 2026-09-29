@@ -29,11 +29,12 @@ class GlobalSearchView(APIView):
     """One search box for the whole school: students, guardians, staff and classes."""
 
     permission_classes = [IsAuthenticated, HasSchoolPermission]
-    required_permissions = {"get": []}
+    required_permissions: dict[str, list[str]] = {"get": []}
 
     @extend_schema(parameters=[OpenApiParameter("q", str, required=True)], responses={200: dict})
     def get(self, request):
-        q = request.query_params.get("q", "").strip()
+        # PostgreSQL rejects NUL characters in strings (a 500); DRF's own SearchFilter strips them too.
+        q = request.query_params.get("q", "").replace("\x00", "").strip()
         results = {"students": [], "guardians": [], "staff": [], "classes": []}
         if len(q) < 2:
             return Response(results)

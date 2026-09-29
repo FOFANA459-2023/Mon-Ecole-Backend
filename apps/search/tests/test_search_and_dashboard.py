@@ -17,6 +17,14 @@ class TestGlobalSearch:
         assert [s["id"] for s in response.data["students"]] == [student.pk]
         assert "7ème A" in response.data["students"][0]["subtitle"]
 
+    def test_nul_characters_do_not_crash_the_search(self, school, make_member, make_student, client_for):
+        # Found by the ZAP scan: PostgreSQL refuses NUL in strings, which used to become a 500.
+        make_student("Awa", "Diallo")
+        admin = make_member(school, "super_admin")
+        response = client_for(admin, school).get("/api/v1/search/", {"q": "dial\x00lo"})
+        assert response.status_code == 200
+        assert [s["title"] for s in response.data["students"]] == ["Awa Diallo"]
+
     def test_finds_guardians_by_phone(self, school, make_student, make_member, client_for):
         link_guardian(
             make_student(), guardian_data={"first_name": "Mariama", "last_name": "Bah", "phone": "620445566"}

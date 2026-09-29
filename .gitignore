@@ -27,3 +27,11 @@ Thumbs.db
 
 # Celery beat schedule (docker compose)
 celerybeat-schedule*
+
+# Terraform (infra/aws): local state and provider downloads
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+.terraform.tfstate.lock.info
