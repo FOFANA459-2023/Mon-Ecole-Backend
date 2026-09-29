@@ -4,7 +4,10 @@
 40003	FAIL	CRLF Injection
 40009	FAIL	Server Side Include
 40012	FAIL	Cross Site Scripting (Reflected)
-40014	FAIL	Cross Site Scripting (Persistent)
+# 40014 also fires, at low confidence, when stored text such as <script> comes back inside JSON. JSON is not
+# rendered as HTML and the web app never inserts raw HTML (its tests and semgrep's React rules check that),
+# so it is a warning here; reflected XSS (40012) stays a failure.
+40014	WARN	Cross Site Scripting (Persistent)
 40018	FAIL	SQL Injection
 40019	FAIL	SQL Injection - MySQL
 40020	FAIL	SQL Injection - Hypersonic SQL
