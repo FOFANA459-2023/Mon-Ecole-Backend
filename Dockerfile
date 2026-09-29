@@ -1,6 +1,6 @@
 # Production image for the Django API, Celery worker and Celery beat (same image, different command).
 # Built for linux/arm64 (AWS Graviton) in CI; also runs on amd64 for local development.
-FROM python:3.13-slim AS base
+FROM python:3.14-slim AS base
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
