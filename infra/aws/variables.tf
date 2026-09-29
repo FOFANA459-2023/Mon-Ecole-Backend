@@ -28,6 +28,12 @@ variable "github_repository" {
   default     = "FOFANA459-2023/Mon-Ecole-Backend"
 }
 
+variable "github_repository_ids" {
+  description = "Same repository as owner@ownerID/name@repoID: GitHub's OIDC subject now carries these immutable IDs."
+  type        = string
+  default     = "FOFANA459-2023@126108825/Mon-Ecole-Backend@1393208680"
+}
+
 variable "create_github_oidc_provider" {
   description = "Create the account-wide GitHub Actions OIDC provider (false if it already exists in this account)."
   type        = bool
