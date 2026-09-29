@@ -26,7 +26,9 @@ Schools can adjust built-in roles or create their own in **Settings → Roles**;
 | Teachers & staff | Edit teachers and staff (`staff.update`) | ✔ | ✔ |  |  |  |  |
 | Teachers & staff | Archive teachers and staff (`staff.archive`) | ✔ | ✔ |  |  |  |  |
 | Finance | View fees, invoices and payments (`finance.view`) | ✔ | ✔ |  | ✔ |  |  |
+| Finance | Set up fee categories, fee schedules and student discounts (`finance.fees.manage`) | ✔ | ✔ |  | ✔ |  |  |
 | Finance | Create invoices (`finance.invoice.create`) | ✔ | ✔ |  | ✔ |  |  |
+| Finance | Cancel invoices (`finance.invoice.cancel`) | ✔ | ✔ |  | ✔ |  |  |
 | Finance | Record payments (`finance.payment.record`) | ✔ | ✔ |  | ✔ |  |  |
 | Finance | Reverse payments (`finance.payment.reverse`) | ✔ | ✔ |  | ✔ |  |  |
 | Finance | Issue refunds (`finance.refund`) | ✔ | ✔ |  | ✔ |  |  |

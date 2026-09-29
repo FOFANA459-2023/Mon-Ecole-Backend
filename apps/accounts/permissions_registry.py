@@ -53,7 +53,9 @@ MODULES: list[tuple[str, str, list[tuple[str, str]]]] = [
         "Finance",
         [
             ("finance.view", "View fees, invoices and payments"),
+            ("finance.fees.manage", "Set up fee categories, fee schedules and student discounts"),
             ("finance.invoice.create", "Create invoices"),
+            ("finance.invoice.cancel", "Cancel invoices"),
             ("finance.payment.record", "Record payments"),
             ("finance.payment.reverse", "Reverse payments"),
             ("finance.refund", "Issue refunds"),
