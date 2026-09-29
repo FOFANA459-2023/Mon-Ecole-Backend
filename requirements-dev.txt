@@ -1,5 +1,5 @@
 -r requirements.txt
-pytest>=8.3
-pytest-django>=4.10
-factory-boy>=3.3
-ruff>=0.9
+pytest>=9.1.1
+pytest-django>=4.14.0
+factory-boy>=3.3.3
+ruff>=0.16.9
