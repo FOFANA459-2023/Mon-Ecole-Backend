@@ -7,6 +7,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
+# The API, worker, beat and one-off migration tasks all run production settings unless told otherwise
+# (docker-compose.yml switches to config.settings.local for development).
+ENV DJANGO_SETTINGS_MODULE=config.settings.production
+
 # Pango/HarfBuzz/fonts are needed by WeasyPrint for report-card and receipt PDFs.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \

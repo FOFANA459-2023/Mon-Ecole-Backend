@@ -1,0 +1,76 @@
+# Checks every pull request. The CD workflow runs this same file before building and deploying main.
+name: CI
+
+on:
+  pull_request:
+  workflow_call:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Lint, schema and tests (PostgreSQL)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: monecole
+          POSTGRES_USER: monecole
+          POSTGRES_PASSWORD: monecole
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U monecole"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgres://monecole:monecole@localhost:5432/monecole
+      DJANGO_SECRET_KEY: ci-only-secret-key-long-enough-for-hmac-sha256
+      DJANGO_SETTINGS_MODULE: config.settings.test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements*.txt
+      - run: pip install -r requirements-dev.txt
+      - name: Lint
+        run: ruff check . && ruff format --check .
+      - name: Migrations are committed
+        run: python manage.py makemigrations --check --dry-run
+      - name: OpenAPI schema is up to date
+        run: |
+          python manage.py spectacular --file /tmp/openapi.yaml --validate --fail-on-warn
+          diff -u openapi.yaml /tmp/openapi.yaml
+      - name: Tests
+        run: pytest
+
+  image:
+    name: Docker image builds and boots
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build (amd64)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: mon-ecole-backend:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Production settings pass Django's deployment checks
+        run: |
+          docker run --rm \
+            -e DJANGO_SECRET_KEY="ci-$(openssl rand -hex 32)" \
+            -e DJANGO_ALLOWED_HOSTS=api.example.org \
+            -e AWS_STORAGE_BUCKET_NAME=ci-bucket \
+            mon-ecole-backend:ci python manage.py check --deploy --fail-level WARNING
