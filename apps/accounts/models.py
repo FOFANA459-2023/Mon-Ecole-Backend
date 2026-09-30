@@ -6,7 +6,7 @@ from django.utils.translation import gettext_lazy as _
 
 from apps.core.models import TimeStampedModel
 
-from .permissions_registry import ALL_CODES, SUPER_ADMIN
+from .permissions_registry import ALL_CODES, DIRECTOR
 
 
 class User(AbstractUser):
@@ -18,6 +18,10 @@ class User(AbstractUser):
     phone = models.CharField(max_length=30, blank=True)
     language = models.CharField(max_length=2, choices=Language.choices, default=Language.FRENCH)
     must_change_password = models.BooleanField(default=False)
+    # Invited accounts: signing in is refused until the email is confirmed with the link we sent, and the
+    # temporary password in that email stops working after `invitation_expires_at`.
+    email_verified_at = models.DateTimeField(null=True, blank=True)
+    invitation_expires_at = models.DateTimeField(null=True, blank=True)
 
     REQUIRED_FIELDS = ["email"]
 
@@ -56,8 +60,8 @@ class Role(TimeStampedModel):
         return self.name
 
     @property
-    def is_super_admin(self) -> bool:
-        return self.key == SUPER_ADMIN
+    def is_director(self) -> bool:
+        return self.key == DIRECTOR
 
     def clean(self):
         unknown = set(self.permissions) - ALL_CODES
@@ -83,5 +87,5 @@ class Membership(TimeStampedModel):
     def permission_codes(self) -> frozenset[str]:
         codes: set[str] = set()
         for role in self.roles.all():
-            codes.update(ALL_CODES if role.is_super_admin else role.permissions)
+            codes.update(ALL_CODES if role.is_director else role.permissions)
         return frozenset(codes & ALL_CODES)

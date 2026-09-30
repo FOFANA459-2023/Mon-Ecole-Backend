@@ -1,12 +1,14 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.utils.translation import gettext_lazy as _
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.schools.models import School
 
 from .models import Membership, Role
 from .permissions_registry import ALL_CODES
+from .services import invitation_status
 
 User = get_user_model()
 
@@ -89,13 +91,17 @@ class MeUpdateSerializer(serializers.ModelSerializer):
 
 
 class ChangePasswordSerializer(serializers.Serializer):
-    current_password = serializers.CharField(trim_whitespace=False)
+    # Not asked when replacing a temporary password: the person has just signed in with it.
+    current_password = serializers.CharField(trim_whitespace=False, required=False)
     new_password = serializers.CharField(trim_whitespace=False)
 
-    def validate_current_password(self, value):
-        if not self.context["request"].user.check_password(value):
-            raise serializers.ValidationError(_("Your current password is incorrect."))
-        return value
+    def validate(self, attrs):
+        user = self.context["request"].user
+        if not user.must_change_password and not user.check_password(attrs.get("current_password", "")):
+            raise serializers.ValidationError(
+                {"current_password": [_("Your current password is incorrect.")]}
+            )
+        return attrs
 
     def validate_new_password(self, value):
         validate_password(value, self.context["request"].user)
@@ -104,6 +110,10 @@ class ChangePasswordSerializer(serializers.Serializer):
 
 class PasswordResetRequestSerializer(serializers.Serializer):
     email = serializers.EmailField()
+
+
+class VerifyEmailSerializer(serializers.Serializer):
+    token = serializers.CharField(max_length=500)
 
 
 class PasswordResetConfirmSerializer(serializers.Serializer):
@@ -146,6 +156,8 @@ class RoleSerializer(serializers.ModelSerializer):
 class MemberUserSerializer(serializers.ModelSerializer):
     full_name = serializers.CharField(read_only=True)
     has_password = serializers.SerializerMethodField()
+    account_status = serializers.SerializerMethodField()
+    invitation_expires_at = serializers.DateTimeField(read_only=True)
 
     class Meta:
         model = User
@@ -160,10 +172,16 @@ class MemberUserSerializer(serializers.ModelSerializer):
             "language",
             "last_login",
             "has_password",
+            "account_status",
+            "invitation_expires_at",
         ]
 
     def get_has_password(self, obj) -> bool:
         return obj.has_usable_password()
+
+    @extend_schema_field(serializers.ChoiceField(choices=["active", "pending", "expired"]))
+    def get_account_status(self, obj) -> str:
+        return invitation_status(obj)
 
 
 class MemberSerializer(serializers.ModelSerializer):
@@ -191,13 +209,6 @@ class MemberCreateSerializer(_RoleIdsMixin, serializers.Serializer):
     phone = serializers.CharField(max_length=30, required=False, allow_blank=True)
     language = serializers.ChoiceField(choices=User.Language.choices, required=False)
     role_ids = serializers.ListField(child=serializers.IntegerField(), allow_empty=False)
-    password = serializers.CharField(required=False, allow_blank=True, trim_whitespace=False)
-
-    def validate(self, attrs):
-        password = attrs.get("password")
-        if password:
-            validate_password(password, User(email=attrs["email"], first_name=attrs["first_name"]))
-        return attrs
 
 
 class MemberUpdateSerializer(_RoleIdsMixin, serializers.Serializer):

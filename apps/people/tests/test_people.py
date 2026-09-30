@@ -29,7 +29,7 @@ class TestStudents:
 
     def test_student_number_cannot_be_changed(self, school, make_student, make_member, client_for):
         student = make_student()
-        admin = make_member(school, "super_admin")
+        admin = make_member(school, "director")
         response = client_for(admin, school).patch(
             f"/api/v1/students/{student.pk}/", {"student_number": "HACK-1"}, format="json"
         )
@@ -40,7 +40,7 @@ class TestStudents:
         in_a = make_student("Awa", "Diallo")
         enroll(in_a, class_a)
         enroll(make_student("Fanta", "Keita"), class_b)
-        admin = make_member(school, "super_admin")
+        admin = make_member(school, "director")
         response = client_for(admin, school).get("/api/v1/students/", {"class_group": class_a.pk})
         assert [row["id"] for row in response.data["results"]] == [in_a.pk]
         assert response.data["results"][0]["current_enrollment"]["class_name"] == "7ème A"
@@ -68,7 +68,7 @@ class TestStudents:
             guardian_data={"first_name": "Mariama", "last_name": "Bah", "phone": "620112233"},
             relationship="mother",
         )
-        admin = make_member(school, "super_admin")
+        admin = make_member(school, "director")
         response = client_for(admin, school).get("/api/v1/students/", {"search": "620112233"})
         assert response.data["count"] == 1
 
@@ -77,7 +77,7 @@ class TestStudents:
     ):
         student = make_student()
         enrolment = enroll(student, make_class())
-        admin = make_member(school, "super_admin")
+        admin = make_member(school, "director")
         client = client_for(admin, school)
         assert client.post(f"/api/v1/students/{student.pk}/archive/").status_code == 400
         withdraw(enrolment, reason="Moved away")
@@ -88,7 +88,7 @@ class TestStudents:
     def test_photo_must_be_an_image(self, school, make_student, make_member, client_for, settings, tmp_path):
         settings.MEDIA_ROOT = tmp_path
         student = make_student()
-        client = client_for(make_member(school, "super_admin"), school)
+        client = client_for(make_member(school, "director"), school)
         bad = SimpleUploadedFile("x.pdf", b"%PDF-1.4", content_type="application/pdf")
         assert (
             client.post(
@@ -105,7 +105,7 @@ class TestStudents:
         student = make_student()
         enroll(student, make_class())
         response = client_for(make_member(school, "teacher"), school)
-        response = client_for(make_member(school, "super_admin", email="a@t.local"), school).get(
+        response = client_for(make_member(school, "director", email="a@t.local"), school).get(
             f"/api/v1/students/{student.pk}/card/"
         )
         assert response.status_code == 200
@@ -218,7 +218,7 @@ class TestStaff:
         self, school, make_staff, make_member, client_for, django_capture_on_commit_callbacks
     ):
         staff = make_staff(email="m.barry@test.local")
-        admin = make_member(school, "super_admin")
+        admin = make_member(school, "director")
         teacher_role = Role.objects.get(school=school, key="teacher")
         with django_capture_on_commit_callbacks(execute=True):
             response = client_for(admin, school).post(
@@ -233,7 +233,7 @@ class TestStaff:
     def test_grant_access_needs_an_email(self, school, make_staff, make_member, client_for):
         staff = make_staff()
         role = Role.objects.get(school=school, key="teacher")
-        response = client_for(make_member(school, "super_admin"), school).post(
+        response = client_for(make_member(school, "director"), school).post(
             f"/api/v1/staff/{staff.pk}/grant-access/", {"role_ids": [role.pk]}, format="json"
         )
         assert response.status_code == 400

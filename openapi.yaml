@@ -394,6 +394,36 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/auth/verify-email/:
+    post:
+      operationId: auth_verify_email_create
+      description: |-
+        The link in an invitation email: confirms the address, then the person signs in with the temporary
+        password and chooses their own.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyEmailRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VerifyEmailRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VerifyEmailRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
   /api/v1/class-subjects/:
     get:
       operationId: class_subjects_list
@@ -2234,6 +2264,167 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/platform/schools/:
+    get:
+      operationId: platform_schools_list
+      description: |-
+        Every school on the platform. Register one (with its Director), suspend or reactivate it, and resend
+        the Director's invitation.
+      parameters:
+      - in: query
+        name: country
+        schema:
+          type: string
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - active
+          - suspended
+        description: |-
+          * `active` - Active
+          * `suspended` - Suspended
+      tags:
+      - platform
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedPlatformSchoolList'
+          description: ''
+    post:
+      operationId: platform_schools_create
+      description: |-
+        Every school on the platform. Register one (with its Director), suspend or reactivate it, and resend
+        the Director's invitation.
+      tags:
+      - platform
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterSchoolRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RegisterSchoolRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RegisterSchoolRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformSchool'
+          description: ''
+  /api/v1/platform/schools/{id}/:
+    get:
+      operationId: platform_schools_retrieve
+      description: |-
+        Every school on the platform. Register one (with its Director), suspend or reactivate it, and resend
+        the Director's invitation.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this school.
+        required: true
+      tags:
+      - platform
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformSchool'
+          description: ''
+  /api/v1/platform/schools/{id}/resend-invitation/:
+    post:
+      operationId: platform_schools_resend_invitation_create
+      description: Send a new verification link and temporary password to Directors
+        who have not activated yet.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this school.
+        required: true
+      tags:
+      - platform
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/platform/schools/{id}/status/:
+    post:
+      operationId: platform_schools_status_create
+      description: Suspend a school (nobody can sign in to it) or reactivate it.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this school.
+        required: true
+      tags:
+      - platform
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SchoolStatusRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SchoolStatusRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SchoolStatusRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformSchool'
+          description: ''
   /api/v1/roles/:
     get:
       operationId: roles_list
@@ -3910,6 +4101,16 @@ components:
       - end_date
       - name
       - start_date
+    AccountStatusEnum:
+      enum:
+      - active
+      - pending
+      - expired
+      type: string
+      description: |-
+        * `active` - active
+        * `pending` - pending
+        * `expired` - expired
     ArchiveStatusEnum:
       enum:
       - active
@@ -4077,7 +4278,6 @@ components:
           type: string
           minLength: 1
       required:
-      - current_password
       - new_password
     ClassGroup:
       type: object
@@ -4238,6 +4438,26 @@ components:
         * `lower_secondary` - Lower secondary
         * `upper_secondary` - Upper secondary
         * `other` - Other
+    Director:
+      type: object
+      properties:
+        id:
+          type: integer
+        full_name:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        account_status:
+          $ref: '#/components/schemas/AccountStatusEnum'
+      required:
+      - account_status
+      - email
+      - full_name
+      - id
+      - phone
     DiscountKindEnum:
       enum:
       - percent
@@ -5358,8 +5578,6 @@ components:
           type: array
           items:
             type: integer
-        password:
-          type: string
       required:
       - email
       - first_name
@@ -5403,12 +5621,45 @@ components:
         has_password:
           type: boolean
           readOnly: true
+        account_status:
+          allOf:
+          - $ref: '#/components/schemas/AccountStatusEnum'
+          readOnly: true
+        invitation_expires_at:
+          type: string
+          format: date-time
+          readOnly: true
       required:
+      - account_status
       - email
       - full_name
       - has_password
       - id
+      - invitation_expires_at
       - username
+    NewDirectorRequest:
+      type: object
+      properties:
+        first_name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        last_name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          minLength: 1
+        phone:
+          type: string
+          default: ''
+          maxLength: 30
+      required:
+      - email
+      - first_name
+      - last_name
     NewStudentRequest:
       type: object
       properties:
@@ -5623,6 +5874,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Member'
+    PaginatedPlatformSchoolList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlatformSchool'
     PaginatedStaffList:
       type: object
       required:
@@ -6216,6 +6490,64 @@ components:
           format: binary
       required:
       - file
+    PlatformSchool:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        code:
+          type: string
+          readOnly: true
+          pattern: ^[-a-zA-Z0-9_]+$
+        country:
+          type: string
+          readOnly: true
+        currency:
+          type: string
+          readOnly: true
+        timezone:
+          type: string
+          readOnly: true
+        default_language:
+          allOf:
+          - $ref: '#/components/schemas/LanguageEnum'
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/SchoolStatusEnum'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        student_count:
+          type: integer
+          readOnly: true
+        member_count:
+          type: integer
+          readOnly: true
+        directors:
+          type: array
+          items:
+            $ref: '#/components/schemas/Director'
+          readOnly: true
+      required:
+      - code
+      - country
+      - created_at
+      - currency
+      - default_language
+      - directors
+      - id
+      - member_count
+      - name
+      - status
+      - student_count
+      - timezone
     PrimaryGuardian:
       type: object
       properties:
@@ -6262,6 +6594,43 @@ components:
       required:
       - promoted
       - skipped
+    RegisterSchoolRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        code:
+          type: string
+          minLength: 1
+          description: Short unique identifier, e.g. 'horizon'.
+          maxLength: 30
+          pattern: ^[-a-zA-Z0-9_]+$
+        country:
+          type: string
+          minLength: 1
+          maxLength: 2
+        currency:
+          type: string
+          minLength: 1
+          maxLength: 3
+        timezone:
+          type: string
+          minLength: 1
+          maxLength: 50
+        default_language:
+          $ref: '#/components/schemas/LanguageEnum'
+        director:
+          $ref: '#/components/schemas/NewDirectorRequest'
+      required:
+      - code
+      - country
+      - currency
+      - default_language
+      - director
+      - name
+      - timezone
     RegistrationRequest:
       type: object
       description: 'New enrolment in one request: a new student (or an existing one),
@@ -6494,6 +6863,13 @@ components:
       description: |-
         * `active` - Active
         * `suspended` - Suspended
+    SchoolStatusRequest:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/SchoolStatusEnum'
+      required:
+      - status
     SourceEnum:
       enum:
       - enrolment
@@ -7032,6 +7408,15 @@ components:
       - name
       - order
       - start_date
+    VerifyEmailRequest:
+      type: object
+      properties:
+        token:
+          type: string
+          minLength: 1
+          maxLength: 500
+      required:
+      - token
     WithdrawRequest:
       type: object
       properties:

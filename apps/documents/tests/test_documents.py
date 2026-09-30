@@ -56,7 +56,7 @@ class TestDocuments:
         self, school, other_school, make_student, make_member, client_for
     ):
         foreign = make_student(target_school=other_school)
-        response = client_for(make_member(school, "super_admin"), school).post(
+        response = client_for(make_member(school, "director"), school).post(
             "/api/v1/documents/",
             {"owner_type": "student", "owner_id": foreign.pk, "file": pdf_file()},
             format="multipart",

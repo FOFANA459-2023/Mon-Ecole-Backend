@@ -117,18 +117,15 @@ def _codes(*prefixes: str) -> list[str]:
     return sorted(c for c in ALL_CODES if any(c == p or c.startswith(f"{p}.") for p in prefixes))
 
 
-SUPER_ADMIN = "super_admin"
+# The top role inside a school. It always holds every school permission (new modules included) and only the
+# platform owner may grant or remove it. The owner is not a school member: see User.is_superuser.
+DIRECTOR = "director"
 
 SYSTEM_ROLES: dict[str, dict] = {
-    SUPER_ADMIN: {
-        "name": "Super Administrator",
-        "description": "Full access to the school.",
-        "permissions": sorted(ALL_CODES),
-    },
-    "director": {
+    DIRECTOR: {
         "name": "School Director / Principal",
-        "description": "Manages students, teachers, classes, finances, attendance, grades and reports.",
-        "permissions": sorted(ALL_CODES - {"users.manage", "settings.manage"}),
+        "description": "Runs the school: staff and access, students, classes, finances, grades and settings.",
+        "permissions": sorted(ALL_CODES),
     },
     "admin_staff": {
         "name": "Administrative Staff",

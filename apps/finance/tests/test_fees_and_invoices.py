@@ -257,7 +257,7 @@ class TestInvoiceApi:
         self, school, fees, make_class, make_student, make_member, client_for
     ):
         invoice = Invoice.objects.get(enrollment=enrollment_services.enroll(make_student(), make_class()))
-        client = client_for(make_member(school, "super_admin"), school)
+        client = client_for(make_member(school, "director"), school)
         assert client.patch(f"/api/v1/invoices/{invoice.pk}/", {"notes": "x"}, format="json").status_code in (
             403,
             405,

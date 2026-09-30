@@ -23,9 +23,12 @@ PUBLIC_ROUTES = {
     "api/v1/auth/logout/",
     "api/v1/auth/password/reset/",
     "api/v1/auth/password/reset/confirm/",
+    "api/v1/auth/verify-email/",
 }
 # Signed-in endpoints that do not act on a school (no X-School-ID needed).
 PERSONAL_ROUTES = {"api/v1/me/", "api/v1/auth/password/change/"}
+# The platform owner's endpoints: every school, no X-School-ID. Nobody else may call them.
+PLATFORM_PREFIX = "api/v1/platform/"
 # Readable by any member of the school, whatever their roles.
 ANY_MEMBER = {
     ("get", "api/v1/school/"),
@@ -123,9 +126,19 @@ def test_member_without_roles_is_refused(method, path, school, make_member, clie
     ("method", "path"), [e for e in ENDPOINTS if e[1] not in PUBLIC_ROUTES | PERSONAL_ROUTES]
 )
 def test_other_schools_do_not_exist(method, path, school, other_school, make_member, client_for):
-    outsider = make_member(other_school, "super_admin")
+    if path.startswith(PLATFORM_PREFIX):
+        pytest.skip("not school-scoped: see test_platform_endpoints_are_owner_only")
+    outsider = make_member(other_school, "director")
     response = _call(client_for(outsider, school), method, path)
     assert response.status_code == 404, f"{method.upper()} /{path} answered {response.status_code}"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(("method", "path"), [e for e in ENDPOINTS if e[1].startswith(PLATFORM_PREFIX)])
+def test_platform_endpoints_are_owner_only(method, path, school, make_member, client_for):
+    director = make_member(school, "director")  # every school permission, but not the platform owner
+    response = _call(client_for(director, school), method, path)
+    assert response.status_code == 403, f"{method.upper()} /{path} answered {response.status_code}"
 
 
 # --- tokens --------------------------------------------------------------------------------------
@@ -170,7 +183,7 @@ class TestAccessTokens:
         assert self._get(token, school).status_code == 401
 
     def test_removed_membership_loses_access_immediately(self, school, make_member):
-        user = make_member(school, "super_admin")
+        user = make_member(school, "director")
         token = str(AccessToken.for_user(user))
         Membership.objects.filter(user=user).update(is_active=False)
         assert self._get(token, school).status_code == 404
@@ -218,13 +231,13 @@ class TestResponses:
         assert settings.REFRESH_COOKIE_NAME not in response.json()["user"]
 
     def test_audit_log_is_read_only(self, school, make_member, client_for):
-        client = client_for(make_member(school, "super_admin"), school)
+        client = client_for(make_member(school, "director"), school)
         assert client.post("/api/v1/audit-logs/", {}, format="json").status_code in {403, 405}
         assert client.patch("/api/v1/audit-logs/1/", {}, format="json").status_code in {403, 405}
         assert client.delete("/api/v1/audit-logs/1/").status_code in {403, 405}
 
     def test_errors_do_not_leak_internals(self, school, make_member, client_for):
-        client = client_for(make_member(school, "super_admin"), school)
+        client = client_for(make_member(school, "director"), school)
         body = client.post("/api/v1/students/", {"first_name": "x" * 500}, format="json").json()
         assert set(body) == {"code", "message", "fields"}
         assert "Traceback" not in str(body)

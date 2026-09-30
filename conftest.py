@@ -2,6 +2,7 @@ from datetime import date
 
 import pytest
 from django.core.cache import cache
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.accounts.models import Membership, Role, User
@@ -32,8 +33,9 @@ def make_member(db):
     """Create a user with the given built-in role(s) in a school."""
 
     def _make(school, *role_keys, email=None, **extra):
-        role_keys = role_keys or ("super_admin",)
+        role_keys = role_keys or ("director",)
         email = email or f"{'-'.join(role_keys)}.{school.code}@test.local"
+        extra.setdefault("email_verified_at", timezone.now())
         user = User.objects.create_user(
             username=email, email=email, password=PASSWORD, first_name="Test", last_name=role_keys[0], **extra
         )
@@ -42,6 +44,21 @@ def make_member(db):
         return user
 
     return _make
+
+
+@pytest.fixture
+def owner(db):
+    """The platform owner: a superuser, member of no school."""
+    return User.objects.create_user(
+        username="owner@test.local",
+        email="owner@test.local",
+        password=PASSWORD,
+        first_name="Platform",
+        last_name="Owner",
+        is_superuser=True,
+        is_staff=True,
+        email_verified_at=timezone.now(),
+    )
 
 
 @pytest.fixture

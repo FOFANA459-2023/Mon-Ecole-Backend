@@ -20,7 +20,7 @@ class TestAcademicYears:
     def test_admin_creates_a_year_with_terms_and_first_year_becomes_current(
         self, school, make_member, client_for
     ):
-        admin = make_member(school, "super_admin")
+        admin = make_member(school, "director")
         response = client_for(admin, school).post(
             "/api/v1/academic-years/",
             {"name": "2026-2027", "start_date": "2026-09-01", "end_date": "2027-06-30", "term_count": 3},
@@ -31,7 +31,7 @@ class TestAcademicYears:
         assert [t["name"] for t in response.data["terms"]] == ["Trimestre 1", "Trimestre 2", "Trimestre 3"]
 
     def test_set_current_moves_the_flag(self, school, year, make_member, client_for):
-        admin = make_member(school, "super_admin")
+        admin = make_member(school, "director")
         client = client_for(admin, school)
         response = client.post(
             "/api/v1/academic-years/",
@@ -55,7 +55,7 @@ class TestAcademicYears:
         assert response.status_code == 403
 
     def test_term_must_fall_inside_its_year(self, school, year, make_member, client_for):
-        admin = make_member(school, "super_admin")
+        admin = make_member(school, "director")
         response = client_for(admin, school).post(
             "/api/v1/terms/",
             {
@@ -76,7 +76,7 @@ class TestClassesAndSubjects:
     def test_create_class_with_level_and_teacher(
         self, school, year, level, make_member, make_staff, client_for
     ):
-        admin = make_member(school, "super_admin")
+        admin = make_member(school, "director")
         teacher = make_staff()
         response = client_for(admin, school).post(
             "/api/v1/classes/",
@@ -96,7 +96,7 @@ class TestClassesAndSubjects:
 
     def test_class_name_is_unique_per_year(self, school, make_class, year, level, make_member, client_for):
         make_class("7ème A")
-        admin = make_member(school, "super_admin")
+        admin = make_member(school, "director")
         response = client_for(admin, school).post(
             "/api/v1/classes/", {"academic_year": year.pk, "level": level.pk, "name": "7ème a"}, format="json"
         )
@@ -104,7 +104,7 @@ class TestClassesAndSubjects:
 
     def test_level_of_another_school_is_rejected(self, school, other_school, year, make_member, client_for):
         foreign_level = Level.objects.create(school=other_school, name="CP", order=1)
-        admin = make_member(school, "super_admin")
+        admin = make_member(school, "director")
         response = client_for(admin, school).post(
             "/api/v1/classes/",
             {"academic_year": year.pk, "level": foreign_level.pk, "name": "CP A"},
@@ -117,14 +117,14 @@ class TestClassesAndSubjects:
         self, school, level, make_class, make_member, client_for
     ):
         make_class()
-        admin = make_member(school, "super_admin")
+        admin = make_member(school, "director")
         response = client_for(admin, school).delete(f"/api/v1/levels/{level.pk}/")
         assert response.status_code == 400
         assert response.data["code"] == "in_use"
         assert not AuditLog.objects.filter(action="delete", entity_type="academics.level").exists()
 
     def test_subject_code_is_uppercased_and_unique(self, school, make_member, client_for):
-        admin = make_member(school, "super_admin")
+        admin = make_member(school, "director")
         client = client_for(admin, school)
         response = client.post(
             "/api/v1/subjects/",
@@ -141,7 +141,7 @@ class TestClassesAndSubjects:
     def test_class_subject_takes_the_subject_default_coefficient(
         self, school, make_class, make_member, client_for
     ):
-        admin = make_member(school, "super_admin")
+        admin = make_member(school, "director")
         subject = Subject.objects.create(school=school, name="Français", code="FR", default_coefficient=3)
         class_group = make_class()
         response = client_for(admin, school).post(

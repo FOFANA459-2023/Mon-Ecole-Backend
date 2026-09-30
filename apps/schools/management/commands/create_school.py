@@ -2,14 +2,14 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from apps.accounts.models import Role
-from apps.accounts.permissions_registry import SUPER_ADMIN
+from apps.accounts.permissions_registry import DIRECTOR
 from apps.accounts.services import add_member
 from apps.schools.models import School
 from apps.schools.services import create_school
 
 
 class Command(BaseCommand):
-    help = "Create a school with its built-in roles and invite its first Super Administrator by email."
+    help = "Create a school with its built-in roles and invite its Director by email."
 
     def add_arguments(self, parser):
         parser.add_argument("--name", required=True)
@@ -39,7 +39,7 @@ class Command(BaseCommand):
             email=opts["admin_email"],
             first_name=opts["admin_first_name"],
             last_name=opts["admin_last_name"],
-            roles=[Role.objects.get(school=school, key=SUPER_ADMIN)],
+            roles=[Role.objects.get(school=school, key=DIRECTOR)],
         )
         self.stdout.write(
             self.style.SUCCESS(

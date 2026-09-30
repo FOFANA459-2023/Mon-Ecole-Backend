@@ -5,6 +5,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import default_token_generator
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Count, Q
+from django.utils import timezone
 from django.utils.encoding import force_str
 from django.utils.http import urlsafe_base64_decode
 from django.utils.translation import gettext_lazy as _
@@ -42,6 +43,7 @@ from .serializers import (
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
     RoleSerializer,
+    VerifyEmailSerializer,
     me_payload,
 )
 
@@ -138,6 +140,21 @@ class LoginView(PublicAuthView):
                     "login_failed", module="auth", summary=f"Failed login for unknown account '{login[:80]}'"
                 )
             raise AuthenticationFailed(_("Incorrect login or password."), code="invalid_credentials")
+        # Only reached with the right password, so these answers never reveal whether an account exists.
+        if user.email_verified_at is None:
+            raise PermissionDenied(
+                _("Confirm your email address first, with the link in the invitation email."),
+                code="email_not_verified",
+            )
+        if (
+            user.must_change_password
+            and user.invitation_expires_at
+            and user.invitation_expires_at < timezone.now()
+        ):
+            raise PermissionDenied(
+                _("Your temporary password has expired. Ask your school to send the invitation again."),
+                code="invitation_expired",
+            )
         update_last_login(None, user)
         _audit_for_user_schools("login", user, summary="Signed in")
         return _session_response(user, request)
@@ -213,7 +230,8 @@ class ChangePasswordView(APIView):
         user = request.user
         user.set_password(serializer.validated_data["new_password"])
         user.must_change_password = False
-        user.save(update_fields=["password", "must_change_password"])
+        user.invitation_expires_at = None
+        user.save(update_fields=["password", "must_change_password", "invitation_expires_at"])
         services.revoke_refresh_tokens(user)
         _audit_for_user_schools("password_change", user, summary="Password changed")
         return _session_response(user, request)
@@ -229,7 +247,7 @@ class PasswordResetRequestView(PublicAuthView):
         serializer.is_valid(raise_exception=True)
         user = User.objects.filter(email__iexact=serializer.validated_data["email"], is_active=True).first()
         if user is not None:
-            services.send_password_email(user, invitation=False)
+            services.send_password_email(user)
             _audit_for_user_schools("password_reset_request", user, summary="Password reset requested")
         # Same answer whether or not the account exists.
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -257,10 +275,37 @@ class PasswordResetConfirmView(PublicAuthView):
             raise ValidationError({"new_password": list(exc.messages)}) from None
         user.set_password(data["new_password"])
         user.must_change_password = False
-        user.save(update_fields=["password", "must_change_password"])
+        user.invitation_expires_at = None
+        # The link arrived by email, so the address is confirmed too.
+        user.email_verified_at = user.email_verified_at or timezone.now()
+        user.save(
+            update_fields=["password", "must_change_password", "invitation_expires_at", "email_verified_at"]
+        )
         services.revoke_refresh_tokens(user)
         _audit_for_user_schools("password_reset", user, summary="Password reset completed")
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class VerifyEmailView(PublicAuthView):
+    """The link in an invitation email: confirms the address, then the person signs in with the temporary
+    password and chooses their own."""
+
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "password_reset"
+
+    @extend_schema(request=VerifyEmailSerializer, responses={200: dict})
+    def post(self, request):
+        serializer = VerifyEmailSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = services.user_for_verification_token(serializer.validated_data["token"])
+        if user is None:
+            message = _("This link is invalid or has expired. Ask your school to send the invitation again.")
+            raise ValidationError({"token": [message]})
+        if user.email_verified_at is None:
+            user.email_verified_at = timezone.now()
+            user.save(update_fields=["email_verified_at"])
+            _audit_for_user_schools("email_verified", user, summary="Email address confirmed")
+        return Response({"email": user.email})
 
 
 # --- users, roles and permissions (per school) ------------------------------------------------
@@ -364,13 +409,5 @@ class MemberViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.G
     @extend_schema(request=None, responses={204: None})
     @action(detail=True, methods=["post"], url_path="send-invite")
     def send_invite(self, request, pk=None):
-        membership = self.get_object()
-        services.send_password_email(membership.user, invitation=True, school=request.school)
-        audit.record(
-            "invite_sent",
-            request=request,
-            instance=membership,
-            module="users",
-            summary=f"Invitation sent to {membership.user.email}",
-        )
+        services.resend_invitation(self.get_object(), request=request)
         return Response(status=status.HTTP_204_NO_CONTENT)

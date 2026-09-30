@@ -21,7 +21,7 @@ class TestCreateSchool:
         assert school.settings.idle_timeout_minutes == 30
         assert school.roles.filter(is_system=True).count() >= 5
         membership = Membership.objects.get(school=school, user__email="dir@test.org")
-        assert list(membership.roles.values_list("key", flat=True)) == ["super_admin"]
+        assert list(membership.roles.values_list("key", flat=True)) == ["director"]
         assert mail.outbox and mail.outbox[0].to == ["dir@test.org"]
 
     def test_refuses_a_duplicate_code(self):

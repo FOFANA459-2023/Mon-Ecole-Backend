@@ -18,6 +18,7 @@ urlpatterns = [
         api.PasswordResetConfirmView.as_view(),
         name="auth-password-reset-confirm",
     ),
+    path("auth/verify-email/", api.VerifyEmailView.as_view(), name="auth-verify-email"),
     path("me/", api.MeView.as_view(), name="me"),
     path("permissions/", api.PermissionRegistryView.as_view(), name="permission-registry"),
     *router.urls,
