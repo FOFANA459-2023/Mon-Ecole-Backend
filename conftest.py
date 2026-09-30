@@ -1,4 +1,5 @@
 from datetime import date
+from decimal import Decimal
 
 import pytest
 from django.core.cache import cache
@@ -133,3 +134,45 @@ def client_for():
         return client
 
     return _client
+
+
+@pytest.fixture
+def tuition(school):
+    from apps.finance.models import FeeCategory
+
+    return FeeCategory.objects.create(school=school, name="Scolarité", kind="tuition")
+
+
+@pytest.fixture
+def registration(school):
+    from apps.finance.models import FeeCategory
+
+    return FeeCategory.objects.create(school=school, name="Inscription", kind="registration")
+
+
+@pytest.fixture
+def fees(school, year, level, tuition, registration):
+    """Tuition 3 000 000 GNF in three installments, plus 250 000 GNF registration for new students."""
+    from apps.finance.models import FeeSchedule
+
+    FeeSchedule.objects.create(
+        school=school,
+        academic_year=year,
+        level=level,
+        category=tuition,
+        amount=Decimal("3000000"),
+        installments=[
+            {"label": "", "due_date": "2026-10-01", "amount": "1000000"},
+            {"label": "", "due_date": "2027-01-10", "amount": "1000000"},
+            {"label": "", "due_date": "2027-04-01", "amount": "1000000"},
+        ],
+    )
+    FeeSchedule.objects.create(
+        school=school,
+        academic_year=year,
+        level=level,
+        category=registration,
+        applies_to=FeeSchedule.AppliesTo.NEW,
+        amount=Decimal("250000"),
+        installments=[{"label": "", "due_date": "2026-09-01", "amount": "250000"}],
+    )

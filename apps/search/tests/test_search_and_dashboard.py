@@ -42,6 +42,26 @@ class TestGlobalSearch:
         assert len(response.data["students"]) == 1
         assert response.data["staff"] == []  # accountants cannot see staff records
 
+    def test_finds_receipts_and_invoices_for_finance_users(
+        self, school, fees, make_class, make_student, make_member, client_for
+    ):
+        from decimal import Decimal
+
+        from apps.finance.services import record_payment
+
+        student = make_student("Awa", "Diallo")
+        enroll(student, make_class())
+        record_payment(student, amount=Decimal("1000"), method="mobile_money", reference="OM-77120")
+        accountant = client_for(make_member(school, "accountant"), school)
+        response = accountant.get("/api/v1/search/", {"q": "rec-"})
+        assert [r["subtitle"].split(" · ")[0] for r in response.data["receipts"]] == ["Awa Diallo"]
+        assert (
+            accountant.get("/api/v1/search/", {"q": "77120"}).data["receipts"][0]["title"].startswith("REC-")
+        )
+        assert len(accountant.get("/api/v1/search/", {"q": "inv-"}).data["invoices"]) == 1
+        teacher = client_for(make_member(school, "teacher"), school)
+        assert teacher.get("/api/v1/search/", {"q": "rec-"}).data["receipts"] == []
+
     def test_other_schools_are_never_searched(
         self, school, other_school, make_student, make_member, client_for
     ):

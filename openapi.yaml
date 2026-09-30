@@ -2249,6 +2249,206 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/payments/:
+    get:
+      operationId: payments_list
+      description: Payments are recorded and reversed, never edited or deleted. Their
+        number is the receipt number.
+      parameters:
+      - in: query
+        name: created_by
+        schema:
+          type: integer
+      - in: query
+        name: date__gte
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date__lte
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: invoice
+        schema:
+          type: integer
+      - in: query
+        name: method
+        schema:
+          type: string
+          enum:
+          - bank_transfer
+          - card
+          - cash
+          - cheque
+          - mobile_money
+          - other
+        description: |-
+          * `cash` - Cash
+          * `mobile_money` - Mobile money
+          * `bank_transfer` - Bank transfer or deposit
+          * `cheque` - Cheque
+          * `card` - Card
+          * `other` - Other
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - posted
+          - reversed
+        description: |-
+          * `posted` - Posted
+          * `reversed` - Reversed
+      - in: query
+        name: student
+        schema:
+          type: integer
+      tags:
+      - payments
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedPaymentListList'
+          description: ''
+    post:
+      operationId: payments_create
+      description: Payments are recorded and reversed, never edited or deleted. Their
+        number is the receipt number.
+      tags:
+      - payments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecordPaymentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RecordPaymentRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RecordPaymentRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+          description: ''
+  /api/v1/payments/{id}/:
+    get:
+      operationId: payments_retrieve
+      description: Payments are recorded and reversed, never edited or deleted. Their
+        number is the receipt number.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this payment.
+        required: true
+      tags:
+      - payments
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+          description: ''
+  /api/v1/payments/{id}/receipt/:
+    get:
+      operationId: payments_receipt_retrieve
+      description: Payments are recorded and reversed, never edited or deleted. Their
+        number is the receipt number.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this payment.
+        required: true
+      tags:
+      - payments
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/payments/{id}/reverse/:
+    post:
+      operationId: payments_reverse_create
+      description: Payments are recorded and reversed, never edited or deleted. Their
+        number is the receipt number.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this payment.
+        required: true
+      tags:
+      - payments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReversePaymentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReversePaymentRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReversePaymentRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+          description: ''
   /api/v1/permissions/:
     get:
       operationId: permissions_retrieve
@@ -2592,8 +2792,8 @@ paths:
   /api/v1/search/:
     get:
       operationId: search_retrieve
-      description: 'One search box for the whole school: students, guardians, staff
-        and classes.'
+      description: 'One search box for the whole school: students, guardians, staff,
+        classes, receipts and invoices.'
       parameters:
       - in: query
         name: q
@@ -2921,6 +3121,29 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Staff'
+          description: ''
+  /api/v1/student-accounts/{id}/:
+    get:
+      operationId: student_accounts_retrieve
+      description: 'A student''s finances at a glance: what they owe, what is overdue,
+        their credit and unpaid lines.'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this student.
+        required: true
+      tags:
+      - student-accounts
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentAccount'
           description: ''
   /api/v1/student-discounts/:
     get:
@@ -5254,6 +5477,11 @@ components:
           items:
             $ref: '#/components/schemas/InvoiceLine'
           readOnly: true
+        payments:
+          type: array
+          items:
+            $ref: '#/components/schemas/InvoicePayment'
+          readOnly: true
       required:
       - academic_year
       - academic_year_name
@@ -5272,6 +5500,7 @@ components:
       - number
       - overdue_amount
       - payment_status
+      - payments
       - source
       - status
       - student
@@ -5281,6 +5510,7 @@ components:
       - total
     InvoiceLine:
       type: object
+      description: A line with what is paid on it (the queryset is annotated by selectors.with_line_balances).
       properties:
         id:
           type: integer
@@ -5309,14 +5539,26 @@ components:
           format: decimal
           pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
           readOnly: true
+        paid:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+        balance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
       required:
       - amount
+      - balance
       - category
       - category_name
       - description
       - due_date
       - id
       - net
+      - paid
     InvoiceList:
       type: object
       description: An invoice with its computed figures (the queryset is annotated
@@ -5436,6 +5678,34 @@ components:
       - student_number
       - subtotal
       - total
+    InvoicePayment:
+      type: object
+      description: 'A payment as seen from one invoice: how much of it went to this
+        invoice.'
+      properties:
+        id:
+          type: integer
+        number:
+          type: string
+        date:
+          type: string
+          format: date
+        method:
+          $ref: '#/components/schemas/PaymentMethodEnum'
+        status:
+          $ref: '#/components/schemas/PaymentStateEnum'
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          description: The part of the payment allocated to this invoice.
+      required:
+      - amount
+      - date
+      - id
+      - method
+      - number
+      - status
     InvoiceStatusEnum:
       enum:
       - issued
@@ -5743,6 +6013,58 @@ components:
       - first_name
       - gender
       - last_name
+    OpenLine:
+      type: object
+      description: An unpaid invoice line of a student (annotated by selectors.with_line_balances).
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        invoice:
+          type: integer
+          readOnly: true
+        invoice_number:
+          type: string
+          readOnly: true
+        category_name:
+          type: string
+          readOnly: true
+        description:
+          type: string
+          readOnly: true
+        due_date:
+          type: string
+          format: date
+          readOnly: true
+        net:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+        paid:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+        balance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+        is_overdue:
+          type: boolean
+          readOnly: true
+      required:
+      - balance
+      - category_name
+      - description
+      - due_date
+      - id
+      - invoice
+      - invoice_number
+      - is_overdue
+      - net
+      - paid
     OwnerTypeEnum:
       enum:
       - student
@@ -5914,6 +6236,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Member'
+    PaginatedPaymentListList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/PaymentList'
     PaginatedPlatformSchoolList:
       type: object
       required:
@@ -6508,6 +6853,267 @@ components:
         end_date:
           type: string
           format: date
+    Payment:
+      type: object
+      description: A payment with how much of it paid invoices (the queryset is annotated
+        by selectors.with_allocated).
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        student:
+          type: integer
+          readOnly: true
+        student_name:
+          type: string
+          readOnly: true
+        student_number:
+          type: string
+          readOnly: true
+        date:
+          type: string
+          format: date
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+        method:
+          allOf:
+          - $ref: '#/components/schemas/PaymentMethodEnum'
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+          description: Mobile money transaction ID, bank slip or cheque number.
+        payer_name:
+          type: string
+          readOnly: true
+          description: Who brought the money.
+        note:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/PaymentStateEnum'
+          readOnly: true
+        allocated:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+          description: Paid to invoice lines.
+        unallocated:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+          description: Kept as the student's credit; 0 once reversed.
+        received_by_name:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        reversed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        reversed_by_name:
+          type: string
+          readOnly: true
+        reversal_reason:
+          type: string
+          readOnly: true
+        allocations:
+          type: array
+          items:
+            $ref: '#/components/schemas/PaymentAllocation'
+          readOnly: true
+      required:
+      - allocated
+      - allocations
+      - amount
+      - created_at
+      - date
+      - id
+      - method
+      - note
+      - number
+      - payer_name
+      - received_by_name
+      - reference
+      - reversal_reason
+      - reversed_at
+      - reversed_by_name
+      - status
+      - student
+      - student_name
+      - student_number
+      - unallocated
+    PaymentAllocation:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        invoice_line:
+          type: integer
+          readOnly: true
+        invoice:
+          type: integer
+          readOnly: true
+        invoice_number:
+          type: string
+          readOnly: true
+        description:
+          type: string
+          readOnly: true
+        due_date:
+          type: string
+          format: date
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+      required:
+      - amount
+      - description
+      - due_date
+      - id
+      - invoice
+      - invoice_line
+      - invoice_number
+    PaymentList:
+      type: object
+      description: A payment with how much of it paid invoices (the queryset is annotated
+        by selectors.with_allocated).
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        student:
+          type: integer
+          readOnly: true
+        student_name:
+          type: string
+          readOnly: true
+        student_number:
+          type: string
+          readOnly: true
+        date:
+          type: string
+          format: date
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+        method:
+          allOf:
+          - $ref: '#/components/schemas/PaymentMethodEnum'
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+          description: Mobile money transaction ID, bank slip or cheque number.
+        payer_name:
+          type: string
+          readOnly: true
+          description: Who brought the money.
+        note:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/PaymentStateEnum'
+          readOnly: true
+        allocated:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+          description: Paid to invoice lines.
+        unallocated:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+          description: Kept as the student's credit; 0 once reversed.
+        received_by_name:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        reversed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        reversed_by_name:
+          type: string
+          readOnly: true
+        reversal_reason:
+          type: string
+          readOnly: true
+      required:
+      - allocated
+      - amount
+      - created_at
+      - date
+      - id
+      - method
+      - note
+      - number
+      - payer_name
+      - received_by_name
+      - reference
+      - reversal_reason
+      - reversed_at
+      - reversed_by_name
+      - status
+      - student
+      - student_name
+      - student_number
+      - unallocated
+    PaymentMethodEnum:
+      enum:
+      - cash
+      - mobile_money
+      - bank_transfer
+      - cheque
+      - card
+      - other
+      type: string
+      description: |-
+        * `cash` - Cash
+        * `mobile_money` - Mobile money
+        * `bank_transfer` - Bank transfer or deposit
+        * `cheque` - Cheque
+        * `card` - Card
+        * `other` - Other
+    PaymentStateEnum:
+      enum:
+      - posted
+      - reversed
+      type: string
+      description: |-
+        * `posted` - Posted
+        * `reversed` - Reversed
     PaymentStatusEnum:
       enum:
       - paid
@@ -6634,6 +7240,55 @@ components:
       required:
       - promoted
       - skipped
+    RecordPaymentAllocationRequest:
+      type: object
+      properties:
+        invoice_line:
+          type: integer
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+      required:
+      - amount
+      - invoice_line
+    RecordPaymentRequest:
+      type: object
+      properties:
+        student:
+          type: integer
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        date:
+          type: string
+          format: date
+          description: Defaults to today; never in the future.
+        method:
+          $ref: '#/components/schemas/PaymentMethodEnum'
+        reference:
+          type: string
+          default: ''
+          maxLength: 100
+        payer_name:
+          type: string
+          default: ''
+          maxLength: 150
+        note:
+          type: string
+          default: ''
+          maxLength: 255
+        allocations:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecordPaymentAllocationRequest'
+          description: The lines this payment pays. Leave it out to pay the oldest
+            due lines first; an empty list keeps the whole amount as credit.
+      required:
+      - amount
+      - method
+      - student
     RegisterSchoolRequest:
       type: object
       properties:
@@ -6715,6 +7370,15 @@ components:
         * `mother` - Mother
         * `guardian` - Guardian
         * `other` - Other
+    ReversePaymentRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 255
+      required:
+      - reason
     Role:
       type: object
       properties:
@@ -7175,6 +7839,52 @@ components:
       - photo_url
       - primary_guardian
       - status
+    StudentAccount:
+      type: object
+      properties:
+        student:
+          type: integer
+        student_name:
+          type: string
+        student_number:
+          type: string
+        invoiced:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          description: Total of the student's issued invoices.
+        paid:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        balance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          description: Still due on issued invoices.
+        overdue:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        credit:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          description: Paid but not used by any invoice yet.
+        open_lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/OpenLine'
+      required:
+      - balance
+      - credit
+      - invoiced
+      - open_lines
+      - overdue
+      - paid
+      - student
+      - student_name
+      - student_number
     StudentDiscount:
       type: object
       properties:

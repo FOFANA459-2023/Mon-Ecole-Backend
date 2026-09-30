@@ -1,7 +1,10 @@
 from datetime import date
 from decimal import Decimal
 
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.academics.models import AcademicYear, ClassGroup, Level
@@ -15,6 +18,8 @@ from .models import (
     FeeSchedule,
     Invoice,
     InvoiceLine,
+    Payment,
+    PaymentAllocation,
     StudentDiscount,
 )
 from .money import ZERO, to_money
@@ -185,13 +190,43 @@ class StudentDiscountSerializer(serializers.ModelSerializer):
         return attrs
 
 
+def _money_field(**kwargs):
+    return serializers.DecimalField(max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES, **kwargs)
+
+
 class InvoiceLineSerializer(serializers.ModelSerializer):
+    """A line with what is paid on it (the queryset is annotated by selectors.with_line_balances)."""
+
     category_name = serializers.CharField(source="category.name", read_only=True)
-    net = serializers.DecimalField(max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES, read_only=True)
+    net = _money_field(read_only=True)
+    paid = _money_field(read_only=True)
+    balance = _money_field(read_only=True)
 
     class Meta:
         model = InvoiceLine
-        fields = ["id", "category", "category_name", "description", "due_date", "amount", "discount", "net"]
+        fields = [
+            "id",
+            "category",
+            "category_name",
+            "description",
+            "due_date",
+            "amount",
+            "discount",
+            "net",
+            "paid",
+            "balance",
+        ]
+
+
+class InvoicePaymentSerializer(serializers.Serializer):
+    """A payment as seen from one invoice: how much of it went to this invoice."""
+
+    id = serializers.IntegerField()
+    number = serializers.CharField()
+    date = serializers.DateField()
+    method = serializers.ChoiceField(choices=Payment.Method.choices)
+    status = serializers.ChoiceField(choices=Payment.Status.choices)
+    amount = _money_field(help_text="The part of the payment allocated to this invoice.")
 
 
 class InvoiceSerializer(serializers.ModelSerializer):
@@ -211,6 +246,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
     next_due_date = serializers.DateField(read_only=True, allow_null=True)
     payment_status = serializers.ChoiceField(choices=PaymentStatus.CHOICES, read_only=True)
     lines = InvoiceLineSerializer(many=True, read_only=True)
+    payments = serializers.SerializerMethodField()
 
     class Meta:
         model = Invoice
@@ -239,13 +275,39 @@ class InvoiceSerializer(serializers.ModelSerializer):
             "cancelled_at",
             "cancel_reason",
             "lines",
+            "payments",
         ]
         read_only_fields = fields
+
+    @extend_schema_field(InvoicePaymentSerializer(many=True))
+    def get_payments(self, obj) -> list[dict]:
+        """Every payment allocated to the invoice, reversed ones included (they no longer count)."""
+        payments: dict[int, dict] = {}
+        allocations = (
+            PaymentAllocation.objects.filter(invoice_line__invoice=obj)
+            .select_related("payment")
+            .order_by("payment__date", "payment_id")
+        )
+        for allocation in allocations:
+            payment = allocation.payment
+            entry = payments.setdefault(
+                payment.pk,
+                {
+                    "id": payment.pk,
+                    "number": payment.number,
+                    "date": payment.date,
+                    "method": payment.method,
+                    "status": payment.status,
+                    "amount": ZERO,
+                },
+            )
+            entry["amount"] += allocation.amount
+        return list(InvoicePaymentSerializer(list(payments.values()), many=True).data)
 
 
 class InvoiceListSerializer(InvoiceSerializer):
     class Meta(InvoiceSerializer.Meta):
-        fields = [f for f in InvoiceSerializer.Meta.fields if f != "lines"]
+        fields = [f for f in InvoiceSerializer.Meta.fields if f not in ("lines", "payments")]
         read_only_fields = fields
 
 
@@ -306,3 +368,145 @@ class GenerateInvoicesResultSerializer(serializers.Serializer):
 
 class CancelInvoiceSerializer(serializers.Serializer):
     reason = serializers.CharField(max_length=255)
+
+
+# --- Payments ----------------------------------------------------------------------------------------------
+
+
+@extend_schema_field(OpenApiTypes.INT)
+class SchoolInvoiceLineField(serializers.PrimaryKeyRelatedField):
+    """An invoice line of the current school (another school's line reads as "does not exist")."""
+
+    def get_queryset(self):
+        school = getattr(self.context.get("request"), "school", None)
+        if school is None:
+            return InvoiceLine.objects.none()
+        return InvoiceLine.objects.filter(invoice__school=school)
+
+
+class PaymentAllocationSerializer(serializers.ModelSerializer):
+    invoice = serializers.IntegerField(source="invoice_line.invoice_id", read_only=True)
+    invoice_number = serializers.CharField(source="invoice_line.invoice.number", read_only=True)
+    description = serializers.CharField(source="invoice_line.description", read_only=True)
+    due_date = serializers.DateField(source="invoice_line.due_date", read_only=True)
+
+    class Meta:
+        model = PaymentAllocation
+        fields = ["id", "invoice_line", "invoice", "invoice_number", "description", "due_date", "amount"]
+        read_only_fields = fields
+
+
+class PaymentSerializer(serializers.ModelSerializer):
+    """A payment with how much of it paid invoices (the queryset is annotated by selectors.with_allocated)."""
+
+    student_name = serializers.CharField(source="student.full_name", read_only=True)
+    student_number = serializers.CharField(source="student.student_number", read_only=True)
+    received_by_name = serializers.CharField(source="created_by.full_name", read_only=True, default=None)
+    reversed_by_name = serializers.CharField(source="reversed_by.full_name", read_only=True, default=None)
+    allocated = _money_field(read_only=True, help_text="Paid to invoice lines.")
+    unallocated = _money_field(read_only=True, help_text="Kept as the student's credit; 0 once reversed.")
+    allocations = PaymentAllocationSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Payment
+        fields = [
+            "id",
+            "number",
+            "student",
+            "student_name",
+            "student_number",
+            "date",
+            "amount",
+            "method",
+            "reference",
+            "payer_name",
+            "note",
+            "status",
+            "allocated",
+            "unallocated",
+            "received_by_name",
+            "created_at",
+            "reversed_at",
+            "reversed_by_name",
+            "reversal_reason",
+            "allocations",
+        ]
+        read_only_fields = fields
+
+
+class PaymentListSerializer(PaymentSerializer):
+    class Meta(PaymentSerializer.Meta):
+        fields = [f for f in PaymentSerializer.Meta.fields if f != "allocations"]
+        read_only_fields = fields
+
+
+class RecordPaymentAllocationSerializer(serializers.Serializer):
+    invoice_line = SchoolInvoiceLineField()
+    amount = _money_field(min_value=Decimal("0.01"))
+
+
+class RecordPaymentSerializer(serializers.Serializer):
+    student = TenantPrimaryKeyRelatedField(queryset=Student.objects.all())
+    amount = _money_field(min_value=Decimal("0.01"))
+    date = serializers.DateField(required=False, help_text="Defaults to today; never in the future.")
+    method = serializers.ChoiceField(choices=Payment.Method.choices)
+    reference = serializers.CharField(max_length=100, required=False, allow_blank=True, default="")
+    payer_name = serializers.CharField(max_length=150, required=False, allow_blank=True, default="")
+    note = serializers.CharField(max_length=255, required=False, allow_blank=True, default="")
+    allocations = RecordPaymentAllocationSerializer(
+        many=True,
+        required=False,
+        help_text="The lines this payment pays. Leave it out to pay the oldest due lines first; "
+        "an empty list keeps the whole amount as credit.",
+    )
+
+    def validate_allocations(self, value):
+        if len(value) > 100:
+            raise serializers.ValidationError(_("Use at most 100 lines."))
+        return value
+
+
+class ReversePaymentSerializer(serializers.Serializer):
+    reason = serializers.CharField(max_length=255)
+
+
+class OpenLineSerializer(serializers.ModelSerializer):
+    """An unpaid invoice line of a student (annotated by selectors.with_line_balances)."""
+
+    invoice_number = serializers.CharField(source="invoice.number", read_only=True)
+    category_name = serializers.CharField(source="category.name", read_only=True)
+    net = _money_field(read_only=True)
+    paid = _money_field(read_only=True)
+    balance = _money_field(read_only=True)
+    is_overdue = serializers.SerializerMethodField()
+
+    class Meta:
+        model = InvoiceLine
+        fields = [
+            "id",
+            "invoice",
+            "invoice_number",
+            "category_name",
+            "description",
+            "due_date",
+            "net",
+            "paid",
+            "balance",
+            "is_overdue",
+        ]
+        read_only_fields = fields
+
+    def get_is_overdue(self, obj) -> bool:
+        return obj.due_date < timezone.localdate()
+
+
+class StudentAccountSerializer(serializers.Serializer):
+    student = serializers.IntegerField()
+    student_name = serializers.CharField()
+    student_number = serializers.CharField()
+    invoiced = _money_field(help_text="Total of the student's issued invoices.")
+    paid = _money_field()
+    balance = _money_field(help_text="Still due on issued invoices.")
+    overdue = _money_field()
+    credit = _money_field(help_text="Paid but not used by any invoice yet.")
+    open_lines = OpenLineSerializer(many=True)

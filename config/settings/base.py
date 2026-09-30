@@ -205,6 +205,8 @@ SPECTACULAR_SETTINGS = {
         "DiscountKindEnum": "apps.finance.models.StudentDiscount.Kind",
         "DiscountReasonEnum": "apps.finance.models.StudentDiscount.Reason",
         "FeeAppliesToEnum": "apps.finance.models.FeeSchedule.AppliesTo",
+        "PaymentMethodEnum": "apps.finance.models.Payment.Method",
+        "PaymentStateEnum": "apps.finance.models.Payment.Status",
     },
 }
 

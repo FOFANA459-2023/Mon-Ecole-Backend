@@ -7,5 +7,7 @@ router.register("fee-categories", api.FeeCategoryViewSet, basename="fee-category
 router.register("fee-schedules", api.FeeScheduleViewSet, basename="fee-schedule")
 router.register("student-discounts", api.StudentDiscountViewSet, basename="student-discount")
 router.register("invoices", api.InvoiceViewSet, basename="invoice")
+router.register("payments", api.PaymentViewSet, basename="payment")
+router.register("student-accounts", api.StudentAccountViewSet, basename="student-account")
 
 urlpatterns = router.urls

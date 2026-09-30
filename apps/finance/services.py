@@ -1,5 +1,6 @@
 from datetime import date
 from decimal import Decimal
+from typing import Any
 
 from django.db import transaction
 from django.utils import timezone
@@ -12,9 +13,17 @@ from apps.core.sequences import next_number
 from apps.enrollments.models import Enrollment
 from apps.people.models import Student
 
-from .models import FeeCategory, FeeSchedule, Invoice, InvoiceLine, StudentDiscount
+from .models import (
+    FeeCategory,
+    FeeSchedule,
+    Invoice,
+    InvoiceLine,
+    Payment,
+    PaymentAllocation,
+    StudentDiscount,
+)
 from .money import ZERO, split, to_money
-from .selectors import has_payments
+from .selectors import has_payments, open_lines, with_allocated
 
 NEW_KINDS = {Enrollment.Kind.NEW, Enrollment.Kind.TRANSFER_IN}
 INSTALLMENT_LABELS = {"fr": "tranche {n}/{total}", "en": "installment {n} of {total}"}
@@ -27,6 +36,16 @@ def _currency(school) -> str:
 def _invoice_prefix(school) -> str:
     settings = getattr(school, "settings", None)
     return getattr(settings, "invoice_prefix", "") or "INV"
+
+
+def _receipt_prefix(school) -> str:
+    settings = getattr(school, "settings", None)
+    return getattr(settings, "receipt_prefix", "") or "REC"
+
+
+def _user(request):
+    user = getattr(request, "user", None)
+    return user if user is not None and user.is_authenticated else None
 
 
 # --- Fee schedules and discounts --------------------------------------------------------------------------
@@ -142,6 +161,7 @@ def _create_invoice(
         summary=f"Invoice {invoice.number} issued to {student.full_name}: {invoice.total} {currency}",
         new={"number": invoice.number, "total": str(invoice.total), "source": source, "lines": len(lines)},
     )
+    apply_credit(student, request=request)
     return invoice
 
 
@@ -238,8 +258,7 @@ def cancel_invoice(invoice: Invoice, *, reason: str, request=None) -> Invoice:
         raise ValidationError(_("This invoice has payments. Reverse them before cancelling it."))
     invoice.status = Invoice.Status.CANCELLED
     invoice.cancelled_at = timezone.now()
-    user = getattr(request, "user", None)
-    invoice.cancelled_by = user if user is not None and user.is_authenticated else None
+    invoice.cancelled_by = _user(request)
     invoice.cancel_reason = reason
     invoice.save(update_fields=["status", "cancelled_at", "cancelled_by", "cancel_reason", "updated_at"])
     audit.record(
@@ -266,3 +285,180 @@ def cancel_unpaid_enrolment_invoices(enrollment: Enrollment, *, reason: str, req
             cancel_invoice(invoice, reason=reason, request=request)
             count += 1
     return count
+
+
+# --- Payments ----------------------------------------------------------------------------------------------
+
+
+def _lock_student(student: Student) -> None:
+    """Payments and credit of one student are allocated one at a time (row lock on PostgreSQL)."""
+    Student.objects.select_for_update().filter(pk=student.pk).first()
+
+
+def _allocate(payment: Payment, lines: list[Any], available: Decimal) -> list[PaymentAllocation]:
+    """Pay `lines` in order with up to `available` of the payment; each line's `balance` is kept current."""
+    allocations = []
+    for line in lines:
+        if available <= 0:
+            break
+        if line.balance <= 0:
+            continue
+        amount = min(line.balance, available)
+        allocations.append(PaymentAllocation(payment=payment, invoice_line=line, amount=amount))
+        line.balance -= amount
+        available -= amount
+    return PaymentAllocation.objects.bulk_create(allocations)
+
+
+def _chosen_allocations(
+    amount: Decimal, chosen: list[dict], lines: list[Any], currency: str
+) -> list[tuple[Any, Decimal]]:
+    """Check the lines the user chose to pay: unpaid lines of this student, never more than is due or paid."""
+    by_id = {line.pk: line for line in lines}
+    wanted: dict[int, Decimal] = {}
+    for item in chosen:
+        line = item["invoice_line"]
+        if line.pk not in by_id:
+            raise ValidationError({"allocations": [_("Choose unpaid lines of this student's invoices.")]})
+        wanted[line.pk] = wanted.get(line.pk, ZERO) + to_money(item["amount"], currency)
+    for pk, value in wanted.items():
+        line = by_id[pk]
+        if value <= 0:
+            raise ValidationError({"allocations": [_("Enter an amount greater than zero.")]})
+        if value > line.balance:
+            raise ValidationError(
+                {
+                    "allocations": [
+                        _("%(line)s: only %(balance)s is still due.")
+                        % {"line": line.description, "balance": line.balance}
+                    ]
+                }
+            )
+    if sum(wanted.values(), ZERO) > amount:
+        raise ValidationError({"allocations": [_("The lines paid add up to more than the payment.")]})
+    return [(line, wanted[line.pk]) for line in lines if line.pk in wanted]
+
+
+@transaction.atomic
+def record_payment(
+    student: Student,
+    *,
+    amount: Decimal,
+    method: str,
+    payment_date: date | None = None,
+    reference: str = "",
+    payer_name: str = "",
+    note: str = "",
+    allocations: list[dict] | None = None,
+    request=None,
+) -> Payment:
+    """Record money received for a student and allocate it to their unpaid invoice lines.
+
+    Without `allocations` ({"invoice_line", "amount"}), the money pays the oldest due lines first. Whatever is
+    left is kept as the student's credit.
+    """
+    school = student.school
+    currency = _currency(school)
+    _lock_student(student)
+    amount = to_money(amount, currency)
+    if amount <= 0:
+        raise ValidationError({"amount": [_("Enter an amount greater than zero.")]})
+    today = timezone.localdate()
+    payment_date = payment_date or today
+    if payment_date > today:
+        raise ValidationError({"date": [_("A payment cannot be dated in the future.")]})
+
+    lines = open_lines(student)
+    chosen = None if allocations is None else _chosen_allocations(amount, allocations, lines, currency)
+    payment = Payment.objects.create(
+        school=school,
+        number=next_number(school, "receipt", _receipt_prefix(school), payment_date.year),
+        student=student,
+        date=payment_date,
+        amount=amount,
+        method=method,
+        reference=reference.strip(),
+        payer_name=payer_name.strip(),
+        note=note.strip(),
+        created_by=_user(request),
+    )
+    if chosen is None:
+        created = _allocate(payment, lines, amount)
+    else:
+        created = PaymentAllocation.objects.bulk_create(
+            PaymentAllocation(payment=payment, invoice_line=line, amount=value) for line, value in chosen
+        )
+    allocated = sum((allocation.amount for allocation in created), ZERO)
+    audit.record(
+        "create",
+        request=request,
+        school=school,
+        instance=payment,
+        module="finance",
+        summary=f"Payment {payment.number} received for {student.full_name}: {amount} {currency}",
+        new={
+            "number": payment.number,
+            "amount": str(amount),
+            "method": method,
+            "date": payment_date.isoformat(),
+            "allocated": str(allocated),
+            "credit": str(amount - allocated),
+        },
+    )
+    return payment
+
+
+@transaction.atomic
+def reverse_payment(payment: Payment, *, reason: str, request=None) -> Payment:
+    """Void a payment recorded by mistake: it stops paying its invoice lines and its receipt is cancelled.
+
+    Credit the student has from other payments then pays the lines the reversal reopened.
+    """
+    payment = Payment.objects.select_for_update().select_related("student__school").get(pk=payment.pk)
+    if payment.status != Payment.Status.POSTED:
+        raise ValidationError(_("This payment is already reversed."))
+    payment.status = Payment.Status.REVERSED
+    payment.reversed_at = timezone.now()
+    payment.reversed_by = _user(request)
+    payment.reversal_reason = reason
+    payment.save(update_fields=["status", "reversed_at", "reversed_by", "reversal_reason", "updated_at"])
+    audit.record(
+        "reverse",
+        request=request,
+        school=payment.school,
+        instance=payment,
+        module="finance",
+        summary=f"Payment {payment.number} reversed: {payment.amount} {_currency(payment.school)}",
+        old={"status": Payment.Status.POSTED},
+        new={"status": Payment.Status.REVERSED, "reason": reason},
+    )
+    apply_credit(payment.student, request=request)
+    return payment
+
+
+@transaction.atomic
+def apply_credit(student: Student, *, request=None) -> Decimal:
+    """Use the student's credit (money paid but not yet allocated) on their unpaid lines, oldest first."""
+    _lock_student(student)
+    payments = list(
+        with_allocated(Payment.objects.filter(student=student, status=Payment.Status.POSTED))
+        .filter(unallocated__gt=0)
+        .order_by("date", "id")
+    )
+    if not payments:
+        return ZERO
+    lines = open_lines(student)
+    used = ZERO
+    for payment in payments:
+        used += sum((a.amount for a in _allocate(payment, lines, payment.unallocated)), ZERO)
+    if used:
+        audit.record(
+            "apply_credit",
+            request=request,
+            school=student.school,
+            instance=student,
+            module="finance",
+            summary=f"Credit of {used} {_currency(student.school)} used on {student.full_name}'s invoices",
+            new={"amount": str(used)},
+        )
+    return used

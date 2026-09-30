@@ -5,45 +5,9 @@ import pytest
 
 from apps.enrollments import services as enrollment_services
 from apps.enrollments.models import Enrollment
-from apps.finance.models import FeeCategory, FeeSchedule, Invoice, StudentDiscount
+from apps.finance.models import FeeSchedule, Invoice, StudentDiscount
 from apps.finance.money import split, to_money
 from apps.finance.selectors import with_balances
-
-
-@pytest.fixture
-def tuition(school):
-    return FeeCategory.objects.create(school=school, name="Scolarité", kind="tuition")
-
-
-@pytest.fixture
-def registration(school):
-    return FeeCategory.objects.create(school=school, name="Inscription", kind="registration")
-
-
-@pytest.fixture
-def fees(school, year, level, tuition, registration):
-    """Tuition 3 000 000 GNF in three installments, plus 250 000 GNF registration for new students."""
-    FeeSchedule.objects.create(
-        school=school,
-        academic_year=year,
-        level=level,
-        category=tuition,
-        amount=Decimal("3000000"),
-        installments=[
-            {"label": "", "due_date": "2026-10-01", "amount": "1000000"},
-            {"label": "", "due_date": "2027-01-10", "amount": "1000000"},
-            {"label": "", "due_date": "2027-04-01", "amount": "1000000"},
-        ],
-    )
-    FeeSchedule.objects.create(
-        school=school,
-        academic_year=year,
-        level=level,
-        category=registration,
-        applies_to=FeeSchedule.AppliesTo.NEW,
-        amount=Decimal("250000"),
-        installments=[{"label": "", "due_date": "2026-09-01", "amount": "250000"}],
-    )
 
 
 def test_money_rounds_to_the_currency_unit():

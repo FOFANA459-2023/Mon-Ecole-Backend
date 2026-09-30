@@ -1,18 +1,29 @@
 from django.db.models import Prefetch
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
-from rest_framework import status
+from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.core.pdf import pdf_response
+from apps.core.permissions import HasSchoolPermission
 from apps.core.viewsets import TenantModelViewSet
+from apps.people.models import Student
 
 from . import services
-from .models import FeeCategory, FeeSchedule, Invoice, InvoiceLine, StudentDiscount
-from .pdf import invoice_pdf
-from .selectors import PaymentStatus, with_balances
+from .models import (
+    FeeCategory,
+    FeeSchedule,
+    Invoice,
+    InvoiceLine,
+    Payment,
+    PaymentAllocation,
+    StudentDiscount,
+)
+from .pdf import invoice_pdf, receipt_pdf
+from .selectors import PaymentStatus, student_account, with_allocated, with_balances, with_line_balances
 from .serializers import (
     CancelInvoiceSerializer,
     FeeCategorySerializer,
@@ -22,6 +33,11 @@ from .serializers import (
     InvoiceListSerializer,
     InvoiceSerializer,
     ManualInvoiceSerializer,
+    PaymentListSerializer,
+    PaymentSerializer,
+    RecordPaymentSerializer,
+    ReversePaymentSerializer,
+    StudentAccountSerializer,
     StudentDiscountSerializer,
 )
 
@@ -98,7 +114,7 @@ class InvoiceViewSet(TenantModelViewSet):
         queryset = with_balances(super().get_queryset())
         if self.action in ("retrieve", "pdf", "cancel", "create"):
             queryset = queryset.prefetch_related(
-                Prefetch("lines", queryset=InvoiceLine.objects.select_related("category"))
+                Prefetch("lines", queryset=with_line_balances(InvoiceLine.objects.select_related("category")))
             )
         params = self.request.query_params
         if params.get("payment_status"):
@@ -161,3 +177,125 @@ class InvoiceViewSet(TenantModelViewSet):
     def pdf(self, request, pk=None):
         invoice = self.get_object()
         return pdf_response(invoice_pdf(invoice), f"{invoice.number}.pdf")
+
+
+@extend_schema_view(
+    list=extend_schema(parameters=[OpenApiParameter("invoice", OpenApiTypes.INT)]),
+)
+class PaymentViewSet(TenantModelViewSet):
+    """Payments are recorded and reversed, never edited or deleted. Their number is the receipt number."""
+
+    queryset = Payment.objects.select_related("student", "created_by", "reversed_by")
+    serializer_class = PaymentSerializer
+    audit_module = "finance"
+    http_method_names = ["get", "post", "head", "options"]
+    filterset_fields = {
+        "student": ["exact"],
+        "method": ["exact"],
+        "status": ["exact"],
+        "date": ["gte", "lte"],
+        "created_by": ["exact"],
+    }
+    search_fields = [
+        "number",
+        "reference",
+        "payer_name",
+        "student__first_name",
+        "student__last_name",
+        "student__student_number",
+    ]
+    ordering_fields = ["date", "number", "amount", "student__last_name"]
+    ordering = ["-date", "-id"]
+    required_permissions = {
+        "list": VIEW,
+        "retrieve": VIEW,
+        "receipt": VIEW,
+        "create": ["finance.payment.record"],
+        "reverse": ["finance.payment.reverse"],
+    }
+
+    def get_queryset(self):
+        queryset = with_allocated(super().get_queryset())
+        if self.action != "list":
+            queryset = queryset.prefetch_related(
+                Prefetch(
+                    "allocations",
+                    queryset=PaymentAllocation.objects.select_related("invoice_line__invoice").order_by(
+                        "invoice_line__due_date", "id"
+                    ),
+                )
+            )
+        invoice = self.request.query_params.get("invoice")
+        if invoice:
+            if not invoice.isdigit():
+                raise ValidationError({"invoice": ["Enter a valid invoice id."]})
+            queryset = queryset.filter(
+                pk__in=PaymentAllocation.objects.filter(invoice_line__invoice=invoice).values("payment")
+            )
+        return queryset
+
+    def get_serializer_class(self):
+        return PaymentListSerializer if self.action == "list" else PaymentSerializer
+
+    def _out(self, payment, code=status.HTTP_200_OK):
+        payment = self.get_queryset().get(pk=payment.pk)
+        return Response(PaymentSerializer(payment, context=self.get_serializer_context()).data, status=code)
+
+    @extend_schema(request=RecordPaymentSerializer, responses={201: PaymentSerializer})
+    def create(self, request, *args, **kwargs):
+        serializer = RecordPaymentSerializer(data=request.data, context=self.get_serializer_context())
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        allocations = data.get("allocations")
+        payment = services.record_payment(
+            data["student"],
+            amount=data["amount"],
+            method=data["method"],
+            payment_date=data.get("date"),
+            reference=data["reference"],
+            payer_name=data["payer_name"],
+            note=data["note"],
+            allocations=None if allocations is None else [dict(item) for item in allocations],
+            request=request,
+        )
+        return self._out(payment, status.HTTP_201_CREATED)
+
+    @extend_schema(request=ReversePaymentSerializer, responses=PaymentSerializer)
+    @action(detail=True, methods=["post"])
+    def reverse(self, request, pk=None):
+        serializer = ReversePaymentSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        payment = services.reverse_payment(
+            self.get_object(), reason=serializer.validated_data["reason"], request=request
+        )
+        return self._out(payment)
+
+    @extend_schema(responses={(200, "application/pdf"): bytes})
+    @action(detail=True, methods=["get"])
+    def receipt(self, request, pk=None):
+        payment = self.get_object()
+        return pdf_response(receipt_pdf(payment), f"{payment.number}.pdf")
+
+
+class StudentAccountViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    """A student's finances at a glance: what they owe, what is overdue, their credit and unpaid lines."""
+
+    permission_classes = [IsAuthenticated, HasSchoolPermission]
+    queryset = Student.objects.all()
+    serializer_class = StudentAccountSerializer
+    required_permissions = {"retrieve": VIEW}
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Student.objects.none()
+        return Student.objects.filter(school=self.request.school)
+
+    def retrieve(self, request, *args, **kwargs):
+        student = self.get_object()
+        data = {
+            "student": student.pk,
+            "student_name": student.full_name,
+            "student_number": student.student_number,
+            **student_account(student),
+        }
+        return Response(StudentAccountSerializer(data, context=self.get_serializer_context()).data)
