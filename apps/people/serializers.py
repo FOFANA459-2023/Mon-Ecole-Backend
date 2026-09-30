@@ -2,6 +2,7 @@ from django.utils.translation import gettext_lazy as _
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
+from apps.academics.models import ClassGroup, Subject
 from apps.core.serializers import TenantPrimaryKeyRelatedField
 
 from .models import Guardian, StaffMember, Student, StudentGuardian
@@ -42,7 +43,9 @@ class PrimaryGuardianSerializer(serializers.Serializer):
 
 class AssignmentSubjectSerializer(serializers.Serializer):
     id = serializers.IntegerField()
+    class_id = serializers.IntegerField()
     class_name = serializers.CharField()
+    subject_id = serializers.IntegerField()
     subject_name = serializers.CharField()
 
 
@@ -279,7 +282,13 @@ class StaffSerializer(serializers.ModelSerializer):
             homeroom = list(obj.homeroom_classes.all())
         return {
             "subjects": [
-                {"id": cs.id, "class_name": cs.class_group.name, "subject_name": cs.subject.name}
+                {
+                    "id": cs.id,
+                    "class_id": cs.class_group_id,
+                    "class_name": cs.class_group.name,
+                    "subject_id": cs.subject_id,
+                    "subject_name": cs.subject.name,
+                }
                 for cs in subjects
             ],
             "homeroom_classes": [{"id": c.id, "name": c.name} for c in homeroom],
@@ -289,6 +298,49 @@ class StaffSerializer(serializers.ModelSerializer):
         if self.instance is not None and value and value != self.instance.employee_number:
             raise serializers.ValidationError(_("The staff number cannot be changed."))
         return value
+
+
+class TeachingItemSerializer(serializers.Serializer):
+    class_group = TenantPrimaryKeyRelatedField(queryset=ClassGroup.objects.all())
+    subject = TenantPrimaryKeyRelatedField(queryset=Subject.objects.all())
+
+
+class TeachingSerializer(serializers.Serializer):
+    """What a teacher does this year: the classes they lead and the subjects they teach, per class."""
+
+    homeroom_class_ids = serializers.ListField(child=serializers.IntegerField(), required=False, default=list)
+    subjects = TeachingItemSerializer(many=True, required=False, default=list)
+
+    def validate_homeroom_class_ids(self, value):
+        classes = list(ClassGroup.objects.filter(school=self.context["request"].school, pk__in=value))
+        if len(classes) != len(set(value)):
+            raise serializers.ValidationError(_("One or more classes do not exist."))
+        return classes
+
+    def validate_subjects(self, value):
+        pairs = [(item["class_group"].pk, item["subject"].pk) for item in value]
+        if len(pairs) != len(set(pairs)):
+            raise serializers.ValidationError(_("The same subject is listed twice for a class."))
+        return value
+
+
+class StaffCreateSerializer(StaffSerializer):
+    """Adding a staff member always gives them a login: an email and a role are required."""
+
+    role_id = serializers.IntegerField(write_only=True)
+    teaching = TeachingSerializer(write_only=True, required=False)
+
+    class Meta(StaffSerializer.Meta):
+        fields = [*StaffSerializer.Meta.fields, "role_id", "teaching"]
+        extra_kwargs = {"email": {"required": True, "allow_blank": False}}
+
+    def validate_role_id(self, value):
+        from apps.accounts.models import Role
+
+        role = Role.objects.filter(school=self.context["request"].school, pk=value).first()
+        if role is None:
+            raise serializers.ValidationError(_("This role does not exist."))
+        return role
 
 
 class GrantAccessSerializer(serializers.Serializer):

@@ -10,7 +10,7 @@ from apps.core.sequences import next_number
 @pytest.mark.django_db
 class TestTenantIsolation:
     def test_member_of_another_school_gets_404(self, school, other_school, make_member, client_for):
-        outsider = make_member(other_school, "super_admin")
+        outsider = make_member(other_school, "director")
         response = client_for(outsider, school).get("/api/v1/school/")
         assert response.status_code == 404
 
@@ -31,7 +31,7 @@ class TestTenantIsolation:
         assert client_for(user, other_school).get("/api/v1/school/").data["code"] == "beta"
 
     def test_inactive_membership_has_no_access(self, school, make_member, client_for):
-        user = make_member(school, "super_admin")
+        user = make_member(school, "director")
         Membership.objects.filter(user=user).update(is_active=False)
         assert client_for(user, school).get("/api/v1/school/").status_code == 404
 
@@ -50,20 +50,20 @@ class TestTenantIsolation:
     def test_audit_log_only_shows_current_school(self, school, other_school, make_member, client_for):
         audit.record("test_event", school=school, summary="alpha event")
         audit.record("test_event", school=other_school, summary="beta event")
-        admin = make_member(school, "super_admin")
+        admin = make_member(school, "director")
 
         response = client_for(admin, school).get("/api/v1/audit-logs/", {"action": "test_event"})
         assert response.status_code == 200
         assert [row["summary"] for row in response.data["results"]] == ["alpha event"]
 
     def test_users_list_only_shows_current_school(self, school, other_school, make_member, client_for):
-        admin = make_member(school, "super_admin")
+        admin = make_member(school, "director")
         make_member(other_school, "teacher")
         response = client_for(admin, school).get("/api/v1/users/")
         assert {row["user"]["email"] for row in response.data["results"]} == {admin.email}
 
     def test_cannot_open_another_schools_member_by_id(self, school, other_school, make_member, client_for):
-        admin = make_member(school, "super_admin")
+        admin = make_member(school, "director")
         foreign = make_member(other_school, "teacher")
         foreign_membership = Membership.objects.get(user=foreign)
         response = client_for(admin, school).patch(
@@ -100,7 +100,7 @@ def test_every_phase_2_record_of_another_school_is_invisible(school, other_schoo
         school=other_school, owner_type="student", owner_id=student.pk, title="x", file="x.pdf"
     )
 
-    client = client_for(make_member(school, "super_admin"), school)
+    client = client_for(make_member(school, "director"), school)
     urls = [
         f"/api/v1/academic-years/{year.pk}/",
         f"/api/v1/terms/{year.terms.first().pk}/",

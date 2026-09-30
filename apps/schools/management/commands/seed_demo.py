@@ -4,6 +4,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
+from django.utils import timezone
 
 from apps.accounts.models import Membership, Role
 from apps.schools.models import School
@@ -37,15 +38,13 @@ SCHOOLS = [
     },
 ]
 
+# The platform owner: not a member of any school, sees and runs every school.
+OWNER = ("admin@monecole.test", "Aïssatou", "Diallo")
+
 # (email, first name, last name, {school code: [role keys]})
 USERS = [
-    (
-        "admin@monecole.test",
-        "Aïssatou",
-        "Diallo",
-        {"horizon": ["super_admin"], "brightfuture": ["super_admin"]},
-    ),
     ("directeur@monecole.test", "Mamadou", "Camara", {"horizon": ["director"]}),
+    ("principal@monecole.test", "Grace", "Tubman", {"brightfuture": ["director"]}),
     ("secretariat@monecole.test", "Fatoumata", "Bah", {"horizon": ["admin_staff"]}),
     ("comptable@monecole.test", "Ibrahima", "Sow", {"horizon": ["accountant"]}),
     ("enseignant@monecole.test", "Mariama", "Condé", {"horizon": ["teacher"]}),
@@ -73,13 +72,27 @@ class Command(BaseCommand):
                 self.stdout.write(f"Created school {school.name}")
             schools[school.code] = school
 
-        for email, first, last, access in USERS:
+        def demo_user(email, first, last, **extra):
             user = User.objects.filter(email=email).first()
             if user is None:
-                user = User(username=email.split("@")[0], email=email, first_name=first, last_name=last)
+                # Demo accounts skip the invitation: already confirmed, with the demo password.
+                user = User(
+                    username=email.split("@")[0],
+                    email=email,
+                    first_name=first,
+                    last_name=last,
+                    email_verified_at=timezone.now(),
+                    **extra,
+                )
                 user.set_password(opts["password"])
                 user.save()
                 self.stdout.write(f"Created user {email}")
+            return user
+
+        demo_user(*OWNER, is_superuser=True, is_staff=True)
+
+        for email, first, last, access in USERS:
+            user = demo_user(email, first, last)
             for code, role_keys in access.items():
                 membership, _ = Membership.objects.get_or_create(user=user, school=schools[code])
                 membership.roles.set(Role.objects.filter(school=schools[code], key__in=role_keys))
@@ -87,4 +100,8 @@ class Command(BaseCommand):
         for school in schools.values():
             seed_school_data(school, self.stdout)
 
-        self.stdout.write(self.style.SUCCESS("Demo data ready. Sign in with any @monecole.test account."))
+        self.stdout.write(
+            self.style.SUCCESS(
+                "Demo data ready. Sign in with any @monecole.test account (admin@ is the platform owner)."
+            )
+        )

@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.academics.models import AcademicYear, ClassGroup
+from apps.academics.scoping import visible_class_ids
 from apps.academics.services import current_year
 from apps.core.permissions import HasSchoolPermission
 from apps.enrollments.models import Enrollment
@@ -15,7 +16,8 @@ from apps.people.models import StaffMember
 
 
 class DashboardSummaryView(APIView):
-    """Headline numbers for the dashboard (school-wide, for one academic year)."""
+    """Headline numbers for the dashboard, for one academic year: school-wide, or limited to the user's
+    own classes when they may not see every class (see academics.scoping)."""
 
     permission_classes = [IsAuthenticated, HasSchoolPermission]
     required_permissions = {"get": ["dashboard.view"]}
@@ -33,6 +35,12 @@ class DashboardSummaryView(APIView):
             return Response({"academic_year": None})
 
         enrollments = Enrollment.objects.filter(school=school, academic_year=year, status="active")
+        classes = ClassGroup.objects.filter(school=school, academic_year=year, status="active")
+        # Users who only see the classes they teach (teachers) get figures for those classes only.
+        class_ids = visible_class_ids(request)
+        if class_ids is not None:
+            enrollments = enrollments.filter(class_group_id__in=class_ids)
+            classes = classes.filter(pk__in=class_ids)
         gender = enrollments.aggregate(
             male=Count("id", filter=Q(student__gender="M")),
             female=Count("id", filter=Q(student__gender="F")),
@@ -45,7 +53,6 @@ class DashboardSummaryView(APIView):
             .annotate(count=Count("id"))
             .order_by("class_group__level__order", "class_group__level__name")
         )
-        classes = ClassGroup.objects.filter(school=school, academic_year=year, status="active")
         capacity = sum(c for c in classes.values_list("capacity", flat=True) if c)
         staff = StaffMember.objects.filter(school=school, status="active")
         since = timezone.localdate() - timedelta(days=30)
@@ -53,6 +60,7 @@ class DashboardSummaryView(APIView):
         return Response(
             {
                 "academic_year": {"id": year.id, "name": year.name},
+                "scope": "school" if class_ids is None else "my_classes",
                 "students": gender["total"],
                 "students_male": gender["male"],
                 "students_female": gender["female"],

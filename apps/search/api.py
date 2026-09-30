@@ -9,6 +9,7 @@ from apps.academics.scoping import visible_class_ids, visible_classes
 from apps.academics.services import current_year
 from apps.core.permissions import HasSchoolPermission
 from apps.enrollments.models import Enrollment
+from apps.finance.models import Invoice, Payment
 from apps.people.models import Guardian, StaffMember, Student
 
 LIMIT = 6
@@ -26,7 +27,7 @@ def _terms_query(q: str, fields: list[str]) -> Q:
 
 
 class GlobalSearchView(APIView):
-    """One search box for the whole school: students, guardians, staff and classes."""
+    """One search box for the whole school: students, guardians, staff, classes, receipts and invoices."""
 
     permission_classes = [IsAuthenticated, HasSchoolPermission]
     required_permissions: dict[str, list[str]] = {"get": []}
@@ -35,7 +36,14 @@ class GlobalSearchView(APIView):
     def get(self, request):
         # PostgreSQL rejects NUL characters in strings (a 500); DRF's own SearchFilter strips them too.
         q = request.query_params.get("q", "").replace("\x00", "").strip()
-        results = {"students": [], "guardians": [], "staff": [], "classes": []}
+        results: dict[str, list] = {
+            "students": [],
+            "guardians": [],
+            "staff": [],
+            "classes": [],
+            "receipts": [],
+            "invoices": [],
+        }
         if len(q) < 2:
             return Response(results)
         school = request.school
@@ -124,5 +132,37 @@ class GlobalSearchView(APIView):
             classes = visible_classes(request, classes)
             results["classes"] = [
                 {"id": c.id, "title": c.name, "subtitle": c.level.name} for c in classes[:LIMIT]
+            ]
+
+        if "finance.view" in perms:
+            payments = (
+                Payment.objects.filter(school=school)
+                .filter(_terms_query(q, ["number", "reference"]))
+                .select_related("student")
+                .order_by("-date", "-id")
+            )
+            results["receipts"] = [
+                {
+                    "id": p.id,
+                    "title": p.number,
+                    "subtitle": " · ".join([p.student.full_name, p.date.isoformat()]),
+                    "status": p.status,
+                }
+                for p in payments[:LIMIT]
+            ]
+            invoices = (
+                Invoice.objects.filter(school=school)
+                .filter(_terms_query(q, ["number"]))
+                .select_related("student")
+                .order_by("-issue_date", "-id")
+            )
+            results["invoices"] = [
+                {
+                    "id": i.id,
+                    "title": i.number,
+                    "subtitle": " · ".join([i.student.full_name, i.issue_date.isoformat()]),
+                    "status": i.status,
+                }
+                for i in invoices[:LIMIT]
             ]
         return Response(results)

@@ -18,7 +18,7 @@ class TestCurrentSchool:
         assert response.status_code == 403
 
     def test_admin_edit_is_saved_and_audited(self, school, make_member, client_for):
-        admin = make_member(school, "super_admin")
+        admin = make_member(school, "director")
         response = client_for(admin, school).patch(
             "/api/v1/school/",
             {"phone": "+224 620 00 00 00", "currency": "usd", "settings": {"idle_timeout_minutes": 45}},
@@ -36,7 +36,7 @@ class TestCurrentSchool:
         }
 
     def test_validation_errors_use_the_standard_shape(self, school, make_member, client_for):
-        admin = make_member(school, "super_admin")
+        admin = make_member(school, "director")
         response = client_for(admin, school).patch(
             "/api/v1/school/", {"settings": {"idle_timeout_minutes": 1}}, format="json"
         )
@@ -45,7 +45,7 @@ class TestCurrentSchool:
         assert "settings.idle_timeout_minutes" in response.data["fields"]
 
     def test_code_cannot_be_changed(self, school, make_member, client_for):
-        admin = make_member(school, "super_admin")
+        admin = make_member(school, "director")
         client_for(admin, school).patch("/api/v1/school/", {"code": "hijack"}, format="json")
         school.refresh_from_db()
         assert school.code == "alpha"

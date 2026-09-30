@@ -1,6 +1,16 @@
 from django.contrib import admin
 
-from .models import FeeCategory, FeeSchedule, Invoice, InvoiceLine, StudentDiscount
+from .models import (
+    Expense,
+    FeeCategory,
+    FeeSchedule,
+    Invoice,
+    InvoiceLine,
+    Payment,
+    PaymentAllocation,
+    Refund,
+    StudentDiscount,
+)
 
 
 @admin.register(FeeCategory)
@@ -46,3 +56,56 @@ class InvoiceAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+
+class PaymentAllocationInline(admin.TabularInline):
+    model = PaymentAllocation
+    extra = 0
+    can_delete = False
+    readonly_fields = ["invoice_line", "amount"]
+
+
+@admin.register(Payment)
+class PaymentAdmin(admin.ModelAdmin):
+    """Read-only: payments are recorded and reversed only through the app, which keeps the audit trail."""
+
+    list_display = ["number", "student", "date", "amount", "method", "status"]
+    list_filter = ["school", "method", "status"]
+    search_fields = ["number", "reference", "student__last_name", "student__student_number"]
+    inlines = [PaymentAllocationInline]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+class ReadOnlyAdmin(admin.ModelAdmin):
+    """Money records change only through the app, which keeps the audit trail."""
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(Expense)
+class ExpenseAdmin(ReadOnlyAdmin):
+    list_display = ["number", "date", "category", "amount", "method", "status"]
+    list_filter = ["school", "category", "method", "status"]
+    search_fields = ["number", "payee", "reference", "description"]
+
+
+@admin.register(Refund)
+class RefundAdmin(ReadOnlyAdmin):
+    list_display = ["student", "date", "amount", "method", "status"]
+    list_filter = ["school", "method", "status"]
+    raw_id_fields = ["student"]

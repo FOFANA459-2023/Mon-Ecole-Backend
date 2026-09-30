@@ -333,3 +333,93 @@ def grant_staff_access(staff: StaffMember, *, roles, request=None) -> StaffMembe
     staff.user = membership.user
     staff.save(update_fields=["user", "updated_at"])
     return staff
+
+
+@transaction.atomic
+def set_teaching(
+    staff: StaffMember, *, homeroom_classes: list, subjects: list[dict], request=None
+) -> StaffMember:
+    """Replace what a teacher does this school year: the classes they lead and the subjects they teach in
+    each class. A class subject that does not exist yet is created with the subject's default coefficient.
+    Another teacher currently on one of these posts is replaced."""
+    from apps.academics.models import ClassGroup, ClassSubject
+    from apps.academics.services import current_year
+
+    year = current_year(staff.school)
+    classes = [c for c in homeroom_classes] + [item["class_group"] for item in subjects]
+    if any(c.school_id != staff.school_id for c in classes) or any(
+        item["subject"].school_id != staff.school_id for item in subjects
+    ):
+        raise ValidationError(_("Classes and subjects must belong to this school."))
+    if year is not None and any(c.academic_year_id != year.pk for c in classes):
+        raise ValidationError(_("Choose classes of the current school year."))
+
+    old = _teaching_summary(staff, year)
+    wanted = {(item["class_group"].pk, item["subject"].pk) for item in subjects}
+    current = ClassSubject.objects.filter(teacher=staff)
+    if year is not None:
+        current = current.filter(class_group__academic_year=year)
+    for class_subject in current:
+        if (class_subject.class_group_id, class_subject.subject_id) not in wanted:
+            class_subject.teacher = None
+            class_subject.save(update_fields=["teacher", "updated_at"])
+    for item in subjects:
+        class_subject, _created = ClassSubject.objects.get_or_create(
+            class_group=item["class_group"],
+            subject=item["subject"],
+            defaults={
+                "school": staff.school,
+                "coefficient": item["subject"].default_coefficient,
+                "created_by": getattr(request, "user", None),
+            },
+        )
+        if class_subject.teacher_id != staff.pk:
+            class_subject.teacher = staff
+            class_subject.save(update_fields=["teacher", "updated_at"])
+
+    homeroom_ids = {c.pk for c in homeroom_classes}
+    led = ClassGroup.objects.filter(class_teacher=staff)
+    if year is not None:
+        led = led.filter(academic_year=year)
+    led.exclude(pk__in=homeroom_ids).update(class_teacher=None)
+    ClassGroup.objects.filter(pk__in=homeroom_ids).update(class_teacher=staff)
+
+    new = _teaching_summary(staff, year)
+    if new != old:
+        audit.record(
+            "update",
+            request=request,
+            instance=staff,
+            module="staff",
+            summary=f"Teaching updated: {staff.full_name}",
+            old=old,
+            new=new,
+        )
+    return staff
+
+
+def _teaching_summary(staff: StaffMember, year) -> dict:
+    from apps.academics.models import ClassGroup, ClassSubject
+
+    subjects = ClassSubject.objects.filter(teacher=staff).select_related("class_group", "subject")
+    homerooms = ClassGroup.objects.filter(class_teacher=staff)
+    if year is not None:
+        subjects = subjects.filter(class_group__academic_year=year)
+        homerooms = homerooms.filter(academic_year=year)
+    return {
+        "homeroom": sorted(c.name for c in homerooms),
+        "subjects": sorted(f"{cs.subject.name} — {cs.class_group.name}" for cs in subjects),
+    }
+
+
+@transaction.atomic
+def add_staff_with_access(
+    school, *, data: dict, role, homeroom_classes: list, subjects: list[dict], request=None
+) -> StaffMember:
+    """The Director's "add a staff member": the staff record, their login (an invitation email with a
+    verification link and temporary password) with the chosen role, and for teachers what they teach."""
+    staff = create_staff(school, data=data, request=request)
+    grant_staff_access(staff, roles=[role], request=request)
+    if homeroom_classes or subjects:
+        set_teaching(staff, homeroom_classes=homeroom_classes, subjects=subjects, request=request)
+    return staff

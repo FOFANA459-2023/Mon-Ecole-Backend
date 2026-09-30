@@ -216,3 +216,157 @@ class InvoiceLine(TimeStampedModel):
     @property
     def net(self) -> Decimal:
         return self.amount - self.discount
+
+
+class Payment(TenantScopedModel):
+    """Money received for a student. Its number is the receipt number; `created_by` received it.
+
+    Posted payments are never edited or deleted: a mistake is corrected by reversing the payment (it then
+    stops counting) and recording the right one. `allocations` say which invoice lines the money paid; the
+    part not allocated is the student's credit, used by the next invoice issued to them.
+    """
+
+    class Method(models.TextChoices):
+        CASH = "cash", _("Cash")
+        MOBILE_MONEY = "mobile_money", _("Mobile money")
+        BANK_TRANSFER = "bank_transfer", _("Bank transfer or deposit")
+        CHEQUE = "cheque", _("Cheque")
+        CARD = "card", _("Card")
+        OTHER = "other", _("Other")
+
+    class Status(models.TextChoices):
+        POSTED = "posted", _("Posted")
+        REVERSED = "reversed", _("Reversed")
+
+    number = models.CharField(max_length=30)
+    student = models.ForeignKey("people.Student", on_delete=models.PROTECT, related_name="payments")
+    date = models.DateField()
+    amount = models.DecimalField(
+        max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES, validators=[MinValueValidator(Decimal("0.01"))]
+    )
+    method = models.CharField(max_length=20, choices=Method.choices, default=Method.CASH)
+    reference = models.CharField(
+        max_length=100, blank=True, help_text="Mobile money transaction ID, bank slip or cheque number."
+    )
+    payer_name = models.CharField(max_length=150, blank=True, help_text="Who brought the money.")
+    note = models.CharField(max_length=255, blank=True)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.POSTED)
+    reversed_at = models.DateTimeField(null=True, blank=True)
+    reversed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    reversal_reason = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ["-date", "-id"]
+        verbose_name = "payment"
+        constraints = [
+            models.UniqueConstraint(fields=["school", "number"], name="uniq_payment_number"),
+            models.CheckConstraint(condition=Q(amount__gt=0), name="payment_amount_positive"),
+        ]
+        indexes = [
+            models.Index(fields=["school", "date"], name="payment_school_date_idx"),
+            models.Index(fields=["student", "status"], name="payment_student_status_idx"),
+        ]
+
+    def __str__(self):
+        return self.number
+
+
+class PaymentAllocation(TimeStampedModel):
+    """The part of a payment that pays one invoice line. Allocations of reversed payments no longer count."""
+
+    payment = models.ForeignKey(Payment, on_delete=models.PROTECT, related_name="allocations")
+    invoice_line = models.ForeignKey(InvoiceLine, on_delete=models.PROTECT, related_name="allocations")
+    amount = models.DecimalField(max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES)
+
+    class Meta:
+        ordering = ["payment", "invoice_line__due_date", "id"]
+        verbose_name = "payment allocation"
+        constraints = [models.CheckConstraint(condition=Q(amount__gt=0), name="allocation_amount_positive")]
+
+    def __str__(self):
+        return f"{self.payment.number} → {self.invoice_line_id}: {self.amount}"
+
+
+class Expense(TenantScopedModel):
+    """Money the school spent. Never edited or deleted: a mistake is cancelled (with a reason) and recorded
+    again. An expense paid in cash leaves the open cash session. `created_by` recorded it."""
+
+    class Category(models.TextChoices):
+        SALARIES = "salaries", _("Salaries and allowances")
+        RENT = "rent", _("Rent")
+        UTILITIES = "utilities", _("Water, electricity, internet")
+        SUPPLIES = "supplies", _("Office and teaching supplies")
+        MAINTENANCE = "maintenance", _("Repairs and maintenance")
+        TRANSPORT = "transport", _("Transport and fuel")
+        FOOD = "food", _("Food and canteen")
+        EVENTS = "events", _("Exams and events")
+        TAXES = "taxes", _("Taxes and fees")
+        OTHER = "other", _("Other")
+
+    class Status(models.TextChoices):
+        RECORDED = "recorded", _("Recorded")
+        CANCELLED = "cancelled", _("Cancelled")
+
+    number = models.CharField(max_length=30)
+    date = models.DateField()
+    category = models.CharField(max_length=20, choices=Category.choices, default=Category.OTHER)
+    amount = models.DecimalField(
+        max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES, validators=[MinValueValidator(Decimal("0.01"))]
+    )
+    method = models.CharField(max_length=20, choices=Payment.Method.choices, default=Payment.Method.CASH)
+    payee = models.CharField(max_length=150, blank=True, help_text="Who was paid.")
+    reference = models.CharField(max_length=100, blank=True, help_text="Invoice, slip or cheque number.")
+    description = models.CharField(max_length=255)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.RECORDED)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    cancelled_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    cancel_reason = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ["-date", "-id"]
+        verbose_name = "expense"
+        constraints = [
+            models.UniqueConstraint(fields=["school", "number"], name="uniq_expense_number"),
+            models.CheckConstraint(condition=Q(amount__gt=0), name="expense_amount_positive"),
+        ]
+        indexes = [models.Index(fields=["school", "date"], name="expense_school_date_idx")]
+
+    def __str__(self):
+        return self.number
+
+
+class Refund(TenantScopedModel):
+    """Credit given back to a student's family. It can never be more than the credit they have. Cancelled,
+    never deleted; a cash refund leaves the open cash session. `created_by` paid it out."""
+
+    class Status(models.TextChoices):
+        POSTED = "posted", _("Posted")
+        CANCELLED = "cancelled", _("Cancelled")
+
+    student = models.ForeignKey("people.Student", on_delete=models.PROTECT, related_name="refunds")
+    date = models.DateField()
+    amount = models.DecimalField(
+        max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES, validators=[MinValueValidator(Decimal("0.01"))]
+    )
+    method = models.CharField(max_length=20, choices=Payment.Method.choices, default=Payment.Method.CASH)
+    reference = models.CharField(max_length=100, blank=True)
+    reason = models.CharField(max_length=255)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.POSTED)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    cancelled_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    cancel_reason = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ["-date", "-id"]
+        verbose_name = "refund"
+        constraints = [models.CheckConstraint(condition=Q(amount__gt=0), name="refund_amount_positive")]
+        indexes = [models.Index(fields=["student", "status"], name="refund_student_status_idx")]
+
+    def __str__(self):
+        return f"{self.student} — {self.amount}"

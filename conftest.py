@@ -1,7 +1,9 @@
 from datetime import date
+from decimal import Decimal
 
 import pytest
 from django.core.cache import cache
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.accounts.models import Membership, Role, User
@@ -32,8 +34,9 @@ def make_member(db):
     """Create a user with the given built-in role(s) in a school."""
 
     def _make(school, *role_keys, email=None, **extra):
-        role_keys = role_keys or ("super_admin",)
+        role_keys = role_keys or ("director",)
         email = email or f"{'-'.join(role_keys)}.{school.code}@test.local"
+        extra.setdefault("email_verified_at", timezone.now())
         user = User.objects.create_user(
             username=email, email=email, password=PASSWORD, first_name="Test", last_name=role_keys[0], **extra
         )
@@ -42,6 +45,21 @@ def make_member(db):
         return user
 
     return _make
+
+
+@pytest.fixture
+def owner(db):
+    """The platform owner: a superuser, member of no school."""
+    return User.objects.create_user(
+        username="owner@test.local",
+        email="owner@test.local",
+        password=PASSWORD,
+        first_name="Platform",
+        last_name="Owner",
+        is_superuser=True,
+        is_staff=True,
+        email_verified_at=timezone.now(),
+    )
 
 
 @pytest.fixture
@@ -116,3 +134,56 @@ def client_for():
         return client
 
     return _client
+
+
+@pytest.fixture
+def tuition(school):
+    from apps.finance.models import FeeCategory
+
+    return FeeCategory.objects.create(school=school, name="Scolarité", kind="tuition")
+
+
+@pytest.fixture
+def registration(school):
+    from apps.finance.models import FeeCategory
+
+    return FeeCategory.objects.create(school=school, name="Inscription", kind="registration")
+
+
+@pytest.fixture
+def fees(school, year, level, tuition, registration):
+    """Tuition 3 000 000 GNF in three installments, plus 250 000 GNF registration for new students."""
+    from apps.finance.models import FeeSchedule
+
+    FeeSchedule.objects.create(
+        school=school,
+        academic_year=year,
+        level=level,
+        category=tuition,
+        amount=Decimal("3000000"),
+        installments=[
+            {"label": "", "due_date": "2026-10-01", "amount": "1000000"},
+            {"label": "", "due_date": "2027-01-10", "amount": "1000000"},
+            {"label": "", "due_date": "2027-04-01", "amount": "1000000"},
+        ],
+    )
+    FeeSchedule.objects.create(
+        school=school,
+        academic_year=year,
+        level=level,
+        category=registration,
+        applies_to=FeeSchedule.AppliesTo.NEW,
+        amount=Decimal("250000"),
+        installments=[{"label": "", "due_date": "2026-09-01", "amount": "250000"}],
+    )
+
+
+@pytest.fixture
+def cash_session(school):
+    """The school's main register, open since 1 September 2026 with an empty float."""
+    from apps.cashregister import services as cash
+
+    session = cash.open_session(cash.default_register(school), opening_balance=Decimal("0"))
+    session.opened_at = timezone.make_aware(timezone.datetime(2026, 9, 1, 7, 30))
+    session.save(update_fields=["opened_at"])
+    return session

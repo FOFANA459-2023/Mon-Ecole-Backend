@@ -12,7 +12,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 ENV DJANGO_SETTINGS_MODULE=config.settings.production
 
 # Pango/HarfBuzz/fonts are needed by WeasyPrint for report-card and receipt PDFs.
+# `upgrade` applies Debian security fixes published after the base image was built (e.g. OpenSSL).
 RUN apt-get update \
+    && apt-get upgrade -y \
     && apt-get install -y --no-install-recommends \
         libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz0b libharfbuzz-subset0 \
         fonts-dejavu-core fonts-liberation \
