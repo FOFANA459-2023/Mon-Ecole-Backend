@@ -63,3 +63,20 @@ def test_dashboard_summary_counts(school, make_class, make_student, make_staff, 
     assert (data["students"], data["students_female"], data["students_male"]) == (2, 1, 1)
     assert (data["classes"], data["capacity"], data["teachers"], data["staff"]) == (1, 40, 1, 2)
     assert data["by_level"] == [{"level_id": class_group.level_id, "level": "7ème année", "count": 2}]
+    assert data["scope"] == "school"
+
+
+@pytest.mark.django_db
+def test_teachers_dashboard_counts_only_their_classes(
+    school, make_class, make_student, make_staff, make_member, client_for
+):
+    teacher = make_member(school, "teacher")
+    mine = make_class("7ème A", class_teacher=make_staff(user=teacher))
+    enroll(make_student("Awa", "Diallo"), mine)
+    other = make_class("7ème B")
+    enroll(make_student("Sékou", "Bah", gender="M"), other)
+    enroll(make_student("Binta", "Sow"), other)
+    data = client_for(teacher, school).get("/api/v1/dashboard/summary/").data
+    assert data["scope"] == "my_classes"
+    assert (data["students"], data["classes"]) == (1, 1)
+    assert data["by_level"][0]["count"] == 1

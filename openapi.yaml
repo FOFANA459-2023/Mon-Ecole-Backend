@@ -753,8 +753,9 @@ paths:
   /api/v1/dashboard/summary/:
     get:
       operationId: dashboard_summary_retrieve
-      description: Headline numbers for the dashboard (school-wide, for one academic
-        year).
+      description: |-
+        Headline numbers for the dashboard, for one academic year: school-wide, or limited to the user's
+        own classes when they may not see every class (see academics.scoping).
       parameters:
       - in: query
         name: academic_year
