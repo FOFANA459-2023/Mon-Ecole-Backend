@@ -197,16 +197,137 @@ class TestGuardians:
 
 @pytest.mark.django_db
 class TestStaff:
-    def test_create_staff_with_auto_number(self, school, year, make_member, client_for):
+    def staff_payload(self, school, role="teacher", **extra):
+        return {
+            "first_name": "Ibrahima",
+            "last_name": "Camara",
+            "email": "i.camara@test.local",
+            "staff_type": "teacher",
+            "position": "Maths",
+            "role_id": Role.objects.get(school=school, key=role).pk,
+            **extra,
+        }
+
+    def test_adding_staff_creates_the_record_and_invites_them(
+        self, school, year, make_member, client_for, django_capture_on_commit_callbacks
+    ):
         client = client_for(make_member(school, "director"), school)
-        response = client.post(
-            "/api/v1/staff/",
-            {"first_name": "Ibrahima", "last_name": "Camara", "staff_type": "teacher", "position": "Maths"},
-            format="json",
-        )
+        with django_capture_on_commit_callbacks(execute=True):
+            response = client.post("/api/v1/staff/", self.staff_payload(school), format="json")
         assert response.status_code == 201, response.data
         assert response.data["employee_number"] == "EMP-2026-0001"
-        assert response.data["has_access"] is False
+        assert response.data["has_access"] is True
+        staff = StaffMember.objects.get(pk=response.data["id"])
+        assert Membership.objects.get(user=staff.user, school=school).roles.get().key == "teacher"
+        assert "Temporary password" in mail.outbox[0].body
+
+    def test_every_staff_member_needs_an_email_and_a_role(self, school, make_member, client_for):
+        client = client_for(make_member(school, "director"), school)
+        response = client.post(
+            "/api/v1/staff/", {"first_name": "Ibrahima", "last_name": "Camara"}, format="json"
+        )
+        assert response.status_code == 400
+        assert {"email", "role_id"} <= set(response.data["fields"])
+        assert not StaffMember.objects.exists()
+
+    def test_a_director_cannot_add_another_director(self, school, make_member, client_for):
+        client = client_for(make_member(school, "director"), school)
+        response = client.post("/api/v1/staff/", self.staff_payload(school, role="director"), format="json")
+        assert response.status_code == 400
+        assert not StaffMember.objects.exists()  # nothing half-created
+
+    def test_adding_staff_needs_the_right_to_manage_users(self, school, make_member, client_for):
+        # Administrative staff may view staff but not create logins.
+        response = client_for(make_member(school, "admin_staff"), school).post(
+            "/api/v1/staff/", self.staff_payload(school), format="json"
+        )
+        assert response.status_code == 403
+
+    def test_a_teacher_is_added_with_their_classes_and_subjects(
+        self, school, year, make_class, make_member, client_for
+    ):
+        from apps.academics.models import ClassSubject, Subject
+
+        maths = Subject.objects.create(school=school, name="Mathématiques", code="MATH")
+        physics = Subject.objects.create(school=school, name="Physique", code="PHY")
+        seventh_a, seventh_b = make_class("7ème A"), make_class("7ème B")
+        payload = self.staff_payload(
+            school,
+            teaching={
+                "homeroom_class_ids": [seventh_a.pk],
+                "subjects": [
+                    {"class_group": seventh_a.pk, "subject": maths.pk},
+                    {"class_group": seventh_b.pk, "subject": maths.pk},
+                    {"class_group": seventh_b.pk, "subject": physics.pk},
+                ],
+            },
+        )
+        response = client_for(make_member(school, "director"), school).post(
+            "/api/v1/staff/", payload, format="json"
+        )
+        assert response.status_code == 201, response.data
+        assert response.data["assignments"]["homeroom_classes"] == [{"id": seventh_a.pk, "name": "7ème A"}]
+        assert sorted(
+            (a["class_name"], a["subject_name"]) for a in response.data["assignments"]["subjects"]
+        ) == [
+            ("7ème A", "Mathématiques"),
+            ("7ème B", "Mathématiques"),
+            ("7ème B", "Physique"),
+        ]
+        assert (
+            ClassSubject.objects.get(class_group=seventh_b, subject=physics).coefficient
+            == physics.default_coefficient
+        )
+
+    def test_teaching_can_be_changed_later(
+        self, school, year, make_class, make_staff, make_member, client_for
+    ):
+        from apps.academics.models import ClassSubject, Subject
+
+        maths = Subject.objects.create(school=school, name="Mathématiques", code="MATH")
+        seventh_a, seventh_b = make_class("7ème A"), make_class("7ème B")
+        staff = make_staff()
+        client = client_for(make_member(school, "director"), school)
+        url = f"/api/v1/staff/{staff.pk}/teaching/"
+        client.post(url, {"subjects": [{"class_group": seventh_a.pk, "subject": maths.pk}]}, format="json")
+        response = client.post(
+            url,
+            {
+                "homeroom_class_ids": [seventh_b.pk],
+                "subjects": [{"class_group": seventh_b.pk, "subject": maths.pk}],
+            },
+            format="json",
+        )
+        assert response.status_code == 200, response.data
+        # 7ème A's maths no longer has this teacher; 7ème B's does, and they now lead 7ème B.
+        assert ClassSubject.objects.get(class_group=seventh_a, subject=maths).teacher is None
+        assert ClassSubject.objects.get(class_group=seventh_b, subject=maths).teacher == staff
+        seventh_b.refresh_from_db()
+        assert seventh_b.class_teacher == staff
+
+    def test_teaching_refuses_another_schools_class(
+        self, school, other_school, year, make_staff, make_member, client_for
+    ):
+        from datetime import date
+
+        from apps.academics.models import AcademicYear, ClassGroup, Level, Subject
+
+        other_year = AcademicYear.objects.create(
+            school=other_school, name="2026-2027", start_date=date(2026, 9, 1), end_date=date(2027, 6, 30)
+        )
+        other_class = ClassGroup.objects.create(
+            school=other_school,
+            academic_year=other_year,
+            level=Level.objects.create(school=other_school, name="7ème"),
+            name="7ème A",
+        )
+        maths = Subject.objects.create(school=school, name="Mathématiques", code="MATH")
+        response = client_for(make_member(school, "director"), school).post(
+            f"/api/v1/staff/{make_staff().pk}/teaching/",
+            {"subjects": [{"class_group": other_class.pk, "subject": maths.pk}]},
+            format="json",
+        )
+        assert response.status_code == 400
 
     def test_teacher_cannot_add_staff(self, school, make_member, client_for):
         response = client_for(make_member(school, "teacher"), school).post(

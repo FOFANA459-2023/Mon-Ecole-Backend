@@ -24,9 +24,11 @@ from .serializers import (
     GuardianLinkUpdateSerializer,
     GuardianSerializer,
     PhotoSerializer,
+    StaffCreateSerializer,
     StaffSerializer,
     StudentListSerializer,
     StudentSerializer,
+    TeachingSerializer,
 )
 
 ACTIVE_ENROLLMENTS = Prefetch(
@@ -318,8 +320,10 @@ class StaffViewSet(TenantModelViewSet):
     required_permissions = {
         "list": ["staff.view"],
         "retrieve": ["staff.view"],
-        "create": ["staff.create"],
+        # Every staff member added gets a login, so adding one also needs the right to manage users.
+        "create": ["staff.create", "users.manage"],
         "partial_update": ["staff.update"],
+        "teaching": ["staff.update", "classes.manage"],
         "photo": ["staff.update"],
         "archive": ["staff.archive"],
         "restore": ["staff.archive"],
@@ -346,10 +350,41 @@ class StaffViewSet(TenantModelViewSet):
             ),
         )
 
-    def perform_create(self, serializer):
-        serializer.instance = services.create_staff(
-            self.request.school, data=dict(serializer.validated_data), request=self.request
+    def get_serializer_class(self):
+        return StaffCreateSerializer if self.action == "create" else StaffSerializer
+
+    @extend_schema(request=StaffCreateSerializer, responses={201: StaffSerializer})
+    def create(self, request, *args, **kwargs):
+        serializer = StaffCreateSerializer(data=request.data, context=self.get_serializer_context())
+        serializer.is_valid(raise_exception=True)
+        data = dict(serializer.validated_data)
+        role = data.pop("role_id")
+        teaching = data.pop("teaching", None) or {"homeroom_class_ids": [], "subjects": []}
+        staff = services.add_staff_with_access(
+            request.school,
+            data=data,
+            role=role,
+            homeroom_classes=teaching["homeroom_class_ids"],
+            subjects=teaching["subjects"],
+            request=request,
         )
+        response = self._detail(staff)
+        response.status_code = status.HTTP_201_CREATED
+        return response
+
+    @extend_schema(request=TeachingSerializer, responses=StaffSerializer)
+    @action(detail=True, methods=["post"])
+    def teaching(self, request, pk=None):
+        """Replace the classes this teacher leads and the subjects they teach this school year."""
+        serializer = TeachingSerializer(data=request.data, context=self.get_serializer_context())
+        serializer.is_valid(raise_exception=True)
+        staff = services.set_teaching(
+            self.get_object(),
+            homeroom_classes=serializer.validated_data["homeroom_class_ids"],
+            subjects=serializer.validated_data["subjects"],
+            request=request,
+        )
+        return self._detail(staff)
 
     def perform_update(self, serializer):
         data = dict(serializer.validated_data)

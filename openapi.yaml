@@ -2693,13 +2693,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/StaffRequest'
+              $ref: '#/components/schemas/StaffCreateRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/StaffRequest'
+              $ref: '#/components/schemas/StaffCreateRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/StaffRequest'
+              $ref: '#/components/schemas/StaffCreateRequest'
         required: true
       security:
       - jwtAuth: []
@@ -2879,6 +2879,40 @@ paths:
         required: true
       tags:
       - staff
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Staff'
+          description: ''
+  /api/v1/staff/{id}/teaching/:
+    post:
+      operationId: staff_teaching_create
+      description: Replace the classes this teacher leads and the subjects they teach
+        this school year.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this staff member.
+        required: true
+      tags:
+      - staff
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeachingRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TeachingRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TeachingRequest'
       security:
       - jwtAuth: []
       responses:
@@ -4124,13 +4158,19 @@ components:
       properties:
         id:
           type: integer
+        class_id:
+          type: integer
         class_name:
           type: string
+        subject_id:
+          type: integer
         subject_name:
           type: string
       required:
+      - class_id
       - class_name
       - id
+      - subject_id
       - subject_name
     Assignments:
       type: object
@@ -6967,8 +7007,10 @@ components:
       - last_name
       - photo_url
       - status
-    StaffRequest:
+    StaffCreateRequest:
       type: object
+      description: 'Adding a staff member always gives them a login: an email and
+        a role are required.'
       properties:
         employee_number:
           type: string
@@ -6993,12 +7035,10 @@ components:
           type: string
           maxLength: 30
         email:
-          oneOf:
-          - type: string
-            format: email
-            maxLength: 254
-          - type: string
-            maxLength: 0
+          type: string
+          format: email
+          minLength: 1
+          maxLength: 254
         address:
           type: string
         staff_type:
@@ -7017,9 +7057,18 @@ components:
           type: string
           format: date
           nullable: true
+        role_id:
+          type: integer
+          writeOnly: true
+        teaching:
+          allOf:
+          - $ref: '#/components/schemas/TeachingRequest'
+          writeOnly: true
       required:
+      - email
       - first_name
       - last_name
+      - role_id
     StaffTypeEnum:
       enum:
       - teacher
@@ -7353,6 +7402,29 @@ components:
       required:
       - code
       - name
+    TeachingItemRequest:
+      type: object
+      properties:
+        class_group:
+          type: integer
+        subject:
+          type: integer
+      required:
+      - class_group
+      - subject
+    TeachingRequest:
+      type: object
+      description: 'What a teacher does this year: the classes they lead and the subjects
+        they teach, per class.'
+      properties:
+        homeroom_class_ids:
+          type: array
+          items:
+            type: integer
+        subjects:
+          type: array
+          items:
+            $ref: '#/components/schemas/TeachingItemRequest'
     Term:
       type: object
       properties:
