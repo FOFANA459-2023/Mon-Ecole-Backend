@@ -9,21 +9,25 @@ from rest_framework.exceptions import ValidationError
 
 from apps.academics.models import AcademicYear, ClassGroup
 from apps.audit import services as audit
+from apps.cashregister import services as cash
+from apps.cashregister.models import CashMovement, CashSession
 from apps.core.sequences import next_number
 from apps.enrollments.models import Enrollment
 from apps.people.models import Student
 
 from .models import (
+    Expense,
     FeeCategory,
     FeeSchedule,
     Invoice,
     InvoiceLine,
     Payment,
     PaymentAllocation,
+    Refund,
     StudentDiscount,
 )
 from .money import ZERO, split, to_money
-from .selectors import has_payments, open_lines, with_allocated
+from .selectors import has_payments, open_lines, student_credit, with_allocated
 
 NEW_KINDS = {Enrollment.Kind.NEW, Enrollment.Kind.TRANSFER_IN}
 INSTALLMENT_LABELS = {"fr": "tranche {n}/{total}", "en": "installment {n} of {total}"}
@@ -290,6 +294,41 @@ def cancel_unpaid_enrolment_invoices(enrollment: Enrollment, *, reason: str, req
 # --- Payments ----------------------------------------------------------------------------------------------
 
 
+def _check_date(day: date | None, future_message: str) -> date:
+    """Money is recorded on the day it moved: today by default, never in the future."""
+    today = timezone.localdate()
+    day = day or today
+    if day > today:
+        raise ValidationError({"date": [future_message]})
+    return day
+
+
+def _cash_session(school, method: str, day: date, chosen: CashSession | None) -> CashSession | None:
+    """The open cash session cash goes through (None when the money is not cash)."""
+    if method != Payment.Method.CASH:
+        return None
+    session = cash.session_for_cash(school, chosen)
+    cash.check_cash_date(session, day)
+    return session
+
+
+def _give_back_cash(
+    original: CashMovement | None, *, direction: str, source: str, description: str, request, **links
+) -> None:
+    """Undo a cash movement with the opposite one, in its session if still open (else its register's)."""
+    if original is None:
+        return
+    cash.record_movement(
+        cash.session_for_return(original.session),
+        direction=direction,
+        source=source,
+        amount=original.amount,
+        description=description,
+        request=request,
+        **links,
+    )
+
+
 def _lock_student(student: Student) -> None:
     """Payments and credit of one student are allocated one at a time (row lock on PostgreSQL)."""
     Student.objects.select_for_update().filter(pk=student.pk).first()
@@ -330,7 +369,7 @@ def _chosen_allocations(
                 {
                     "allocations": [
                         _("%(line)s: only %(balance)s is still due.")
-                        % {"line": line.description, "balance": line.balance}
+                        % {"line": line.description, "balance": to_money(line.balance, currency)}
                     ]
                 }
             )
@@ -350,12 +389,14 @@ def record_payment(
     payer_name: str = "",
     note: str = "",
     allocations: list[dict] | None = None,
+    cash_session: CashSession | None = None,
     request=None,
 ) -> Payment:
     """Record money received for a student and allocate it to their unpaid invoice lines.
 
     Without `allocations` ({"invoice_line", "amount"}), the money pays the oldest due lines first. Whatever is
-    left is kept as the student's credit.
+    left is kept as the student's credit. Cash goes into an open cash session: `cash_session`, or the school's
+    only open one.
     """
     school = student.school
     currency = _currency(school)
@@ -363,10 +404,8 @@ def record_payment(
     amount = to_money(amount, currency)
     if amount <= 0:
         raise ValidationError({"amount": [_("Enter an amount greater than zero.")]})
-    today = timezone.localdate()
-    payment_date = payment_date or today
-    if payment_date > today:
-        raise ValidationError({"date": [_("A payment cannot be dated in the future.")]})
+    payment_date = _check_date(payment_date, _("A payment cannot be dated in the future."))
+    session = _cash_session(school, method, payment_date, cash_session)
 
     lines = open_lines(student)
     chosen = None if allocations is None else _chosen_allocations(amount, allocations, lines, currency)
@@ -405,6 +444,16 @@ def record_payment(
             "credit": str(amount - allocated),
         },
     )
+    if session is not None:
+        cash.record_movement(
+            session,
+            direction=CashMovement.Direction.IN,
+            source=CashMovement.Source.PAYMENT,
+            amount=amount,
+            description=f"{payment.number} — {student.full_name}",
+            payment=payment,
+            request=request,
+        )
     return payment
 
 
@@ -432,25 +481,40 @@ def reverse_payment(payment: Payment, *, reason: str, request=None) -> Payment:
         old={"status": Payment.Status.POSTED},
         new={"status": Payment.Status.REVERSED, "reason": reason},
     )
+    if student_credit(payment.student) < 0:
+        raise ValidationError(_("Part of this payment's credit was refunded. Cancel the refund first."))
+    _give_back_cash(
+        payment.cash_movements.filter(source=CashMovement.Source.PAYMENT).first(),
+        direction=CashMovement.Direction.OUT,
+        source=CashMovement.Source.PAYMENT_REVERSAL,
+        description=f"{payment.number} reversed — {payment.student.full_name}",
+        request=request,
+        payment=payment,
+    )
     apply_credit(payment.student, request=request)
     return payment
 
 
 @transaction.atomic
 def apply_credit(student: Student, *, request=None) -> Decimal:
-    """Use the student's credit (money paid but not yet allocated) on their unpaid lines, oldest first."""
+    """Use the student's credit (money paid, not allocated and not refunded) on their unpaid lines, oldest
+    first."""
     _lock_student(student)
+    available = student_credit(student)
+    if available <= 0:
+        return ZERO
     payments = list(
         with_allocated(Payment.objects.filter(student=student, status=Payment.Status.POSTED))
         .filter(unallocated__gt=0)
         .order_by("date", "id")
     )
-    if not payments:
-        return ZERO
     lines = open_lines(student)
     used = ZERO
     for payment in payments:
-        used += sum((a.amount for a in _allocate(payment, lines, payment.unallocated)), ZERO)
+        share = min(payment.unallocated, available - used)
+        if share <= 0:
+            break
+        used += sum((a.amount for a in _allocate(payment, lines, share)), ZERO)
     if used:
         audit.record(
             "apply_credit",
@@ -462,3 +526,189 @@ def apply_credit(student: Student, *, request=None) -> Decimal:
             new={"amount": str(used)},
         )
     return used
+
+
+# --- Expenses and refunds -----------------------------------------------------------------------------------
+
+
+@transaction.atomic
+def record_expense(
+    school,
+    *,
+    amount: Decimal,
+    category: str,
+    method: str,
+    description: str,
+    expense_date: date | None = None,
+    payee: str = "",
+    reference: str = "",
+    cash_session: CashSession | None = None,
+    request=None,
+) -> Expense:
+    """Record money the school spent. Paid in cash, it leaves an open cash session (at most what it holds)."""
+    currency = _currency(school)
+    amount = to_money(amount, currency)
+    if amount <= 0:
+        raise ValidationError({"amount": [_("Enter an amount greater than zero.")]})
+    expense_date = _check_date(expense_date, _("An expense cannot be dated in the future."))
+    session = _cash_session(school, method, expense_date, cash_session)
+    expense = Expense.objects.create(
+        school=school,
+        number=next_number(school, "expense", "EXP", expense_date.year),
+        date=expense_date,
+        category=category,
+        amount=amount,
+        method=method,
+        payee=payee.strip(),
+        reference=reference.strip(),
+        description=description.strip(),
+        created_by=_user(request),
+    )
+    audit.record(
+        "create",
+        request=request,
+        school=school,
+        instance=expense,
+        module="finance",
+        summary=f"Expense {expense.number}: {amount} {currency} — {expense.description}",
+        new={"number": expense.number, "amount": str(amount), "category": category, "method": method},
+    )
+    if session is not None:
+        cash.record_movement(
+            session,
+            direction=CashMovement.Direction.OUT,
+            source=CashMovement.Source.EXPENSE,
+            amount=amount,
+            description=f"{expense.number} — {expense.description}",
+            expense=expense,
+            request=request,
+        )
+    return expense
+
+
+@transaction.atomic
+def cancel_expense(expense: Expense, *, reason: str, request=None) -> Expense:
+    """Cancel an expense recorded by mistake; cash paid out goes back into the register."""
+    expense = Expense.objects.select_for_update().select_related("school").get(pk=expense.pk)
+    if expense.status != Expense.Status.RECORDED:
+        raise ValidationError(_("This expense is already cancelled."))
+    expense.status = Expense.Status.CANCELLED
+    expense.cancelled_at = timezone.now()
+    expense.cancelled_by = _user(request)
+    expense.cancel_reason = reason
+    expense.save(update_fields=["status", "cancelled_at", "cancelled_by", "cancel_reason", "updated_at"])
+    audit.record(
+        "cancel",
+        request=request,
+        school=expense.school,
+        instance=expense,
+        module="finance",
+        summary=f"Expense {expense.number} cancelled: {expense.amount} {_currency(expense.school)}",
+        old={"status": Expense.Status.RECORDED},
+        new={"status": Expense.Status.CANCELLED, "reason": reason},
+    )
+    _give_back_cash(
+        expense.cash_movements.filter(source=CashMovement.Source.EXPENSE).first(),
+        direction=CashMovement.Direction.IN,
+        source=CashMovement.Source.EXPENSE_CANCELLATION,
+        description=f"{expense.number} cancelled — {expense.description}",
+        request=request,
+        expense=expense,
+    )
+    return expense
+
+
+@transaction.atomic
+def record_refund(
+    student: Student,
+    *,
+    amount: Decimal,
+    method: str,
+    reason: str,
+    refund_date: date | None = None,
+    reference: str = "",
+    cash_session: CashSession | None = None,
+    request=None,
+) -> Refund:
+    """Give a family back some of the student's credit (never more than the credit)."""
+    school = student.school
+    currency = _currency(school)
+    _lock_student(student)
+    amount = to_money(amount, currency)
+    if amount <= 0:
+        raise ValidationError({"amount": [_("Enter an amount greater than zero.")]})
+    credit = to_money(student_credit(student), currency)
+    if amount > credit:
+        raise ValidationError(
+            {
+                "amount": [
+                    _("Only %(credit)s %(currency)s of credit can be refunded.")
+                    % {"credit": credit, "currency": currency}
+                ]
+            }
+        )
+    refund_date = _check_date(refund_date, _("A refund cannot be dated in the future."))
+    session = _cash_session(school, method, refund_date, cash_session)
+    refund = Refund.objects.create(
+        school=school,
+        student=student,
+        date=refund_date,
+        amount=amount,
+        method=method,
+        reference=reference.strip(),
+        reason=reason.strip(),
+        created_by=_user(request),
+    )
+    audit.record(
+        "create",
+        request=request,
+        school=school,
+        instance=refund,
+        module="finance",
+        summary=f"Refund of {amount} {currency} to {student.full_name}",
+        new={"amount": str(amount), "method": method, "reason": refund.reason},
+    )
+    if session is not None:
+        cash.record_movement(
+            session,
+            direction=CashMovement.Direction.OUT,
+            source=CashMovement.Source.REFUND,
+            amount=amount,
+            description=f"Refund — {student.full_name}",
+            refund=refund,
+            request=request,
+        )
+    return refund
+
+
+@transaction.atomic
+def cancel_refund(refund: Refund, *, reason: str, request=None) -> Refund:
+    """Cancel a refund recorded by mistake: the credit comes back (and pays any unpaid lines)."""
+    refund = Refund.objects.select_for_update().select_related("student__school").get(pk=refund.pk)
+    if refund.status != Refund.Status.POSTED:
+        raise ValidationError(_("This refund is already cancelled."))
+    refund.status = Refund.Status.CANCELLED
+    refund.cancelled_at = timezone.now()
+    refund.cancelled_by = _user(request)
+    refund.cancel_reason = reason
+    refund.save(update_fields=["status", "cancelled_at", "cancelled_by", "cancel_reason", "updated_at"])
+    audit.record(
+        "cancel",
+        request=request,
+        school=refund.school,
+        instance=refund,
+        module="finance",
+        summary=f"Refund to {refund.student.full_name} cancelled: {refund.amount} {_currency(refund.school)}",
+        old={"status": Refund.Status.POSTED},
+        new={"status": Refund.Status.CANCELLED, "reason": reason},
+    )
+    _give_back_cash(
+        refund.cash_movements.filter(source=CashMovement.Source.REFUND).first(),
+        direction=CashMovement.Direction.IN,
+        source=CashMovement.Source.REFUND_CANCELLATION,
+        description=f"Refund cancelled — {refund.student.full_name}",
+        request=request,
+        refund=refund,
+    )
+    apply_credit(refund.student, request=request)
+    return refund

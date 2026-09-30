@@ -24,7 +24,7 @@ from django.db.models import (
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
-from .models import MONEY_DIGITS, MONEY_PLACES, Invoice, InvoiceLine, Payment, PaymentAllocation
+from .models import MONEY_DIGITS, MONEY_PLACES, Invoice, InvoiceLine, Payment, PaymentAllocation, Refund
 from .money import ZERO
 
 MONEY_FIELD: DecimalField = DecimalField(max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES)
@@ -126,12 +126,15 @@ def with_allocated(queryset: QuerySet[Payment]) -> QuerySet[Any]:
 
 
 def student_credit(student) -> Decimal:
-    """Money the student paid that no invoice line has used yet."""
+    """Money the student paid that no invoice line has used yet and that was not refunded."""
     received = Payment.objects.filter(student=student, status=Payment.Status.POSTED).aggregate(
         s=Sum("amount")
     )["s"]
     used = counted_allocations().filter(payment__student=student).aggregate(s=Sum("amount"))["s"]
-    return (received or ZERO) - (used or ZERO)
+    refunded = Refund.objects.filter(student=student, status=Refund.Status.POSTED).aggregate(s=Sum("amount"))[
+        "s"
+    ]
+    return (received or ZERO) - (used or ZERO) - (refunded or ZERO)
 
 
 def student_account(student, today: date | None = None) -> dict:

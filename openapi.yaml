@@ -424,6 +424,347 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/cash-registers/:
+    get:
+      operationId: cash_registers_list
+      description: The school's cash boxes. A first one ("Caisse principale") exists
+        as soon as the list is read.
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - cash-registers
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CashRegister'
+          description: ''
+    post:
+      operationId: cash_registers_create
+      description: The school's cash boxes. A first one ("Caisse principale") exists
+        as soon as the list is read.
+      tags:
+      - cash-registers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CashRegisterRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CashRegisterRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CashRegisterRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CashRegister'
+          description: ''
+  /api/v1/cash-registers/{id}/:
+    get:
+      operationId: cash_registers_retrieve
+      description: The school's cash boxes. A first one ("Caisse principale") exists
+        as soon as the list is read.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this cash register.
+        required: true
+      tags:
+      - cash-registers
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CashRegister'
+          description: ''
+    patch:
+      operationId: cash_registers_partial_update
+      description: The school's cash boxes. A first one ("Caisse principale") exists
+        as soon as the list is read.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this cash register.
+        required: true
+      tags:
+      - cash-registers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCashRegisterRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCashRegisterRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCashRegisterRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CashRegister'
+          description: ''
+    delete:
+      operationId: cash_registers_destroy
+      description: The school's cash boxes. A first one ("Caisse principale") exists
+        as soon as the list is read.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this cash register.
+        required: true
+      tags:
+      - cash-registers
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/cash-sessions/:
+    get:
+      operationId: cash_sessions_list
+      description: Opening, cash movements and closing of a register. Sessions are
+        never edited or deleted.
+      parameters:
+      - in: query
+        name: opened_at__date__gte
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: opened_at__date__lte
+        schema:
+          type: string
+          format: date
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: register
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - closed
+          - open
+        description: |-
+          * `open` - Open
+          * `closed` - Closed
+      tags:
+      - cash-sessions
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedCashSessionList'
+          description: ''
+    post:
+      operationId: cash_sessions_create
+      description: Opening, cash movements and closing of a register. Sessions are
+        never edited or deleted.
+      tags:
+      - cash-sessions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpenSessionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OpenSessionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OpenSessionRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CashSessionDetail'
+          description: ''
+  /api/v1/cash-sessions/{id}/:
+    get:
+      operationId: cash_sessions_retrieve
+      description: Opening, cash movements and closing of a register. Sessions are
+        never edited or deleted.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this cash session.
+        required: true
+      tags:
+      - cash-sessions
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CashSessionDetail'
+          description: ''
+  /api/v1/cash-sessions/{id}/close/:
+    post:
+      operationId: cash_sessions_close_create
+      description: Opening, cash movements and closing of a register. Sessions are
+        never edited or deleted.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this cash session.
+        required: true
+      tags:
+      - cash-sessions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CloseSessionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CloseSessionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CloseSessionRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CashSessionDetail'
+          description: ''
+  /api/v1/cash-sessions/{id}/journal/:
+    get:
+      operationId: cash_sessions_journal_retrieve
+      description: Opening, cash movements and closing of a register. Sessions are
+        never edited or deleted.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this cash session.
+        required: true
+      tags:
+      - cash-sessions
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/cash-sessions/{id}/movements/:
+    post:
+      operationId: cash_sessions_movements_create
+      description: 'Cash in or out that is not a payment, an expense or a refund:
+        a bank deposit, a float top-up...'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this cash session.
+        required: true
+      tags:
+      - cash-sessions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ManualMovementRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ManualMovementRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ManualMovementRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CashMovement'
+          description: ''
   /api/v1/class-subjects/:
     get:
       operationId: class_subjects_list
@@ -1320,6 +1661,200 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Enrollment'
+          description: ''
+  /api/v1/expenses/:
+    get:
+      operationId: expenses_list
+      description: 'Money the school spends: recorded and cancelled, never edited
+        or deleted.'
+      parameters:
+      - in: query
+        name: category
+        schema:
+          type: string
+          enum:
+          - events
+          - food
+          - maintenance
+          - other
+          - rent
+          - salaries
+          - supplies
+          - taxes
+          - transport
+          - utilities
+        description: |-
+          * `salaries` - Salaries and allowances
+          * `rent` - Rent
+          * `utilities` - Water, electricity, internet
+          * `supplies` - Office and teaching supplies
+          * `maintenance` - Repairs and maintenance
+          * `transport` - Transport and fuel
+          * `food` - Food and canteen
+          * `events` - Exams and events
+          * `taxes` - Taxes and fees
+          * `other` - Other
+      - in: query
+        name: created_by
+        schema:
+          type: integer
+      - in: query
+        name: date__gte
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date__lte
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: method
+        schema:
+          type: string
+          enum:
+          - bank_transfer
+          - card
+          - cash
+          - cheque
+          - mobile_money
+          - other
+        description: |-
+          * `cash` - Cash
+          * `mobile_money` - Mobile money
+          * `bank_transfer` - Bank transfer or deposit
+          * `cheque` - Cheque
+          * `card` - Card
+          * `other` - Other
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - cancelled
+          - recorded
+        description: |-
+          * `recorded` - Recorded
+          * `cancelled` - Cancelled
+      tags:
+      - expenses
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedExpenseList'
+          description: ''
+    post:
+      operationId: expenses_create
+      description: 'Money the school spends: recorded and cancelled, never edited
+        or deleted.'
+      tags:
+      - expenses
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecordExpenseRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RecordExpenseRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RecordExpenseRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Expense'
+          description: ''
+  /api/v1/expenses/{id}/:
+    get:
+      operationId: expenses_retrieve
+      description: 'Money the school spends: recorded and cancelled, never edited
+        or deleted.'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this expense.
+        required: true
+      tags:
+      - expenses
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Expense'
+          description: ''
+  /api/v1/expenses/{id}/cancel/:
+    post:
+      operationId: expenses_cancel_create
+      description: 'Money the school spends: recorded and cancelled, never edited
+        or deleted.'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this expense.
+        required: true
+      tags:
+      - expenses
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReasonRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReasonRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReasonRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Expense'
           description: ''
   /api/v1/fee-categories/:
     get:
@@ -2624,6 +3159,174 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PlatformSchool'
+          description: ''
+  /api/v1/refunds/:
+    get:
+      operationId: refunds_list
+      description: 'Student credit given back to families: recorded and cancelled,
+        never edited or deleted.'
+      parameters:
+      - in: query
+        name: date__gte
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date__lte
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: method
+        schema:
+          type: string
+          enum:
+          - bank_transfer
+          - card
+          - cash
+          - cheque
+          - mobile_money
+          - other
+        description: |-
+          * `cash` - Cash
+          * `mobile_money` - Mobile money
+          * `bank_transfer` - Bank transfer or deposit
+          * `cheque` - Cheque
+          * `card` - Card
+          * `other` - Other
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - cancelled
+          - posted
+        description: |-
+          * `posted` - Posted
+          * `cancelled` - Cancelled
+      - in: query
+        name: student
+        schema:
+          type: integer
+      tags:
+      - refunds
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedRefundList'
+          description: ''
+    post:
+      operationId: refunds_create
+      description: 'Student credit given back to families: recorded and cancelled,
+        never edited or deleted.'
+      tags:
+      - refunds
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecordRefundRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RecordRefundRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RecordRefundRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Refund'
+          description: ''
+  /api/v1/refunds/{id}/:
+    get:
+      operationId: refunds_retrieve
+      description: 'Student credit given back to families: recorded and cancelled,
+        never edited or deleted.'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this refund.
+        required: true
+      tags:
+      - refunds
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Refund'
+          description: ''
+  /api/v1/refunds/{id}/cancel/:
+    post:
+      operationId: refunds_cancel_create
+      description: 'Student credit given back to families: recorded and cancelled,
+        never edited or deleted.'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this refund.
+        required: true
+      tags:
+      - refunds
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReasonRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReasonRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReasonRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Refund'
           description: ''
   /api/v1/roles/:
     get:
@@ -4320,7 +5023,7 @@ components:
           type: boolean
           readOnly: true
         status:
-          $ref: '#/components/schemas/YearStatusEnum'
+          $ref: '#/components/schemas/OpenClosedStatusEnum'
         terms:
           type: array
           items:
@@ -4348,7 +5051,7 @@ components:
           type: string
           format: date
         status:
-          $ref: '#/components/schemas/YearStatusEnum'
+          $ref: '#/components/schemas/OpenClosedStatusEnum'
         term_count:
           type: integer
           maximum: 6
@@ -4493,30 +5196,352 @@ components:
           maxLength: 255
       required:
       - reason
-    CategoryEnum:
+    CashDirectionEnum:
       enum:
-      - birth_certificate
-      - id_photo
-      - previous_report
-      - transfer_certificate
-      - medical
-      - identity
-      - diploma
-      - contract
-      - official
-      - other
+      - in
+      - out
       type: string
       description: |-
-        * `birth_certificate` - Birth certificate
-        * `id_photo` - ID photo
-        * `previous_report` - Previous report card
-        * `transfer_certificate` - Transfer certificate
-        * `medical` - Medical record
-        * `identity` - Identity document
-        * `diploma` - Diploma / certificate
-        * `contract` - Contract
-        * `official` - Official document
-        * `other` - Other
+        * `in` - Money in
+        * `out` - Money out
+    CashMovement:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        direction:
+          allOf:
+          - $ref: '#/components/schemas/CashDirectionEnum'
+          readOnly: true
+        source:
+          allOf:
+          - $ref: '#/components/schemas/CashSourceEnum'
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+        description:
+          type: string
+          readOnly: true
+        created_by_name:
+          type: string
+          readOnly: true
+        payment:
+          type: integer
+          readOnly: true
+          nullable: true
+        payment_number:
+          type: string
+          readOnly: true
+        expense:
+          type: integer
+          readOnly: true
+          nullable: true
+        expense_number:
+          type: string
+          readOnly: true
+        refund:
+          type: integer
+          readOnly: true
+          nullable: true
+        student:
+          type: integer
+          nullable: true
+          description: The student a payment or a refund was for.
+          readOnly: true
+      required:
+      - amount
+      - created_at
+      - created_by_name
+      - description
+      - direction
+      - expense
+      - expense_number
+      - id
+      - payment
+      - payment_number
+      - refund
+      - source
+      - student
+    CashRegister:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        is_active:
+          type: boolean
+        open_session:
+          allOf:
+          - $ref: '#/components/schemas/OpenSessionBrief'
+          nullable: true
+          readOnly: true
+        last_counted:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          description: 'Cash counted at the last closing: the next float.'
+          readOnly: true
+      required:
+      - id
+      - last_counted
+      - name
+      - open_session
+    CashRegisterRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        is_active:
+          type: boolean
+      required:
+      - name
+    CashSession:
+      type: object
+      description: A session with its running totals (the queryset is annotated with
+        money_in and money_out).
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        register:
+          type: integer
+          readOnly: true
+        register_name:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/OpenClosedStatusEnum'
+          readOnly: true
+        opened_at:
+          type: string
+          format: date-time
+          readOnly: true
+        opened_by_name:
+          type: string
+          readOnly: true
+        opening_balance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+        opening_note:
+          type: string
+          readOnly: true
+        money_in:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+        money_out:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+        expected:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+          description: Opening + money in − money out.
+        closed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        closed_by_name:
+          type: string
+          readOnly: true
+        expected_closing:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
+        counted_closing:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
+        difference:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
+          description: 'Counted − expected: positive is a surplus, negative a shortage.'
+        closing_note:
+          type: string
+          readOnly: true
+      required:
+      - closed_at
+      - closed_by_name
+      - closing_note
+      - counted_closing
+      - difference
+      - expected
+      - expected_closing
+      - id
+      - money_in
+      - money_out
+      - opened_at
+      - opened_by_name
+      - opening_balance
+      - opening_note
+      - register
+      - register_name
+      - status
+    CashSessionDetail:
+      type: object
+      description: A session with its running totals (the queryset is annotated with
+        money_in and money_out).
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        register:
+          type: integer
+          readOnly: true
+        register_name:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/OpenClosedStatusEnum'
+          readOnly: true
+        opened_at:
+          type: string
+          format: date-time
+          readOnly: true
+        opened_by_name:
+          type: string
+          readOnly: true
+        opening_balance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+        opening_note:
+          type: string
+          readOnly: true
+        money_in:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+        money_out:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+        expected:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+          description: Opening + money in − money out.
+        closed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        closed_by_name:
+          type: string
+          readOnly: true
+        expected_closing:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
+        counted_closing:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
+        difference:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+          nullable: true
+          description: 'Counted − expected: positive is a surplus, negative a shortage.'
+        closing_note:
+          type: string
+          readOnly: true
+        by_source:
+          type: array
+          items:
+            $ref: '#/components/schemas/SourceTotal'
+          readOnly: true
+        movements:
+          type: array
+          items:
+            $ref: '#/components/schemas/CashMovement'
+          readOnly: true
+      required:
+      - by_source
+      - closed_at
+      - closed_by_name
+      - closing_note
+      - counted_closing
+      - difference
+      - expected
+      - expected_closing
+      - id
+      - money_in
+      - money_out
+      - movements
+      - opened_at
+      - opened_by_name
+      - opening_balance
+      - opening_note
+      - register
+      - register_name
+      - status
+    CashSessionRef:
+      type: object
+      properties:
+        id:
+          type: integer
+        register_name:
+          type: string
+      required:
+      - id
+      - register_name
+    CashSourceEnum:
+      enum:
+      - payment
+      - payment_reversal
+      - expense
+      - expense_cancellation
+      - refund
+      - refund_cancellation
+      - manual
+      type: string
+      description: |-
+        * `payment` - Payment
+        * `payment_reversal` - Payment reversed
+        * `expense` - Expense
+        * `expense_cancellation` - Expense cancelled
+        * `refund` - Refund
+        * `refund_cancellation` - Refund cancelled
+        * `manual` - Other movement
     ChangeClassRequest:
       type: object
       properties:
@@ -4687,6 +5712,19 @@ components:
       required:
       - class_group
       - subject
+    CloseSessionRequest:
+      type: object
+      properties:
+        counted_closing:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        closing_note:
+          type: string
+          default: ''
+          maxLength: 255
+      required:
+      - counted_closing
     CycleEnum:
       enum:
       - preschool
@@ -4757,7 +5795,7 @@ components:
           minimum: 0
           format: int64
         category:
-          $ref: '#/components/schemas/CategoryEnum'
+          $ref: '#/components/schemas/DocumentCategoryEnum'
         title:
           type: string
           maxLength: 200
@@ -4783,6 +5821,30 @@ components:
       - owner_type
       - title
       - uploaded_by_name
+    DocumentCategoryEnum:
+      enum:
+      - birth_certificate
+      - id_photo
+      - previous_report
+      - transfer_certificate
+      - medical
+      - identity
+      - diploma
+      - contract
+      - official
+      - other
+      type: string
+      description: |-
+        * `birth_certificate` - Birth certificate
+        * `id_photo` - ID photo
+        * `previous_report` - Previous report card
+        * `transfer_certificate` - Transfer certificate
+        * `medical` - Medical record
+        * `identity` - Identity document
+        * `diploma` - Diploma / certificate
+        * `contract` - Contract
+        * `official` - Official document
+        * `other` - Other
     DocumentUploadRequest:
       type: object
       properties:
@@ -4793,7 +5855,7 @@ components:
           minimum: 0
         category:
           allOf:
-          - $ref: '#/components/schemas/CategoryEnum'
+          - $ref: '#/components/schemas/DocumentCategoryEnum'
           default: other
         title:
           type: string
@@ -4974,6 +6036,119 @@ components:
       - id
       - photo_url
       - student_number
+    Expense:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        date:
+          type: string
+          format: date
+          readOnly: true
+        category:
+          allOf:
+          - $ref: '#/components/schemas/ExpenseCategoryEnum'
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+        method:
+          allOf:
+          - $ref: '#/components/schemas/PaymentMethodEnum'
+          readOnly: true
+        payee:
+          type: string
+          readOnly: true
+          description: Who was paid.
+        reference:
+          type: string
+          readOnly: true
+          description: Invoice, slip or cheque number.
+        description:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/ExpenseStatusEnum'
+          readOnly: true
+        recorded_by_name:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        cancelled_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        cancelled_by_name:
+          type: string
+          readOnly: true
+        cancel_reason:
+          type: string
+          readOnly: true
+        cash_session:
+          allOf:
+          - $ref: '#/components/schemas/CashSessionRef'
+          nullable: true
+          readOnly: true
+      required:
+      - amount
+      - cancel_reason
+      - cancelled_at
+      - cancelled_by_name
+      - cash_session
+      - category
+      - created_at
+      - date
+      - description
+      - id
+      - method
+      - number
+      - payee
+      - recorded_by_name
+      - reference
+      - status
+    ExpenseCategoryEnum:
+      enum:
+      - salaries
+      - rent
+      - utilities
+      - supplies
+      - maintenance
+      - transport
+      - food
+      - events
+      - taxes
+      - other
+      type: string
+      description: |-
+        * `salaries` - Salaries and allowances
+        * `rent` - Rent
+        * `utilities` - Water, electricity, internet
+        * `supplies` - Office and teaching supplies
+        * `maintenance` - Repairs and maintenance
+        * `transport` - Transport and fuel
+        * `food` - Food and canteen
+        * `events` - Exams and events
+        * `taxes` - Taxes and fees
+        * `other` - Other
+    ExpenseStatusEnum:
+      enum:
+      - recorded
+      - cancelled
+      type: string
+      description: |-
+        * `recorded` - Recorded
+        * `cancelled` - Cancelled
     FeeAppliesToEnum:
       enum:
       - all
@@ -5416,7 +6591,7 @@ components:
           readOnly: true
         source:
           allOf:
-          - $ref: '#/components/schemas/SourceEnum'
+          - $ref: '#/components/schemas/InvoiceSourceEnum'
           readOnly: true
         status:
           allOf:
@@ -5598,7 +6773,7 @@ components:
           readOnly: true
         source:
           allOf:
-          - $ref: '#/components/schemas/SourceEnum'
+          - $ref: '#/components/schemas/InvoiceSourceEnum'
           readOnly: true
         status:
           allOf:
@@ -5706,6 +6881,14 @@ components:
       - method
       - number
       - status
+    InvoiceSourceEnum:
+      enum:
+      - enrolment
+      - manual
+      type: string
+      description: |-
+        * `enrolment` - Enrolment fees
+        * `manual` - Manual
     InvoiceStatusEnum:
       enum:
       - issued
@@ -5838,6 +7021,23 @@ components:
       - academic_year
       - lines
       - student
+    ManualMovementRequest:
+      type: object
+      properties:
+        direction:
+          $ref: '#/components/schemas/CashDirectionEnum'
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        description:
+          type: string
+          minLength: 1
+          maxLength: 255
+      required:
+      - amount
+      - description
+      - direction
     Member:
       type: object
       properties:
@@ -6013,6 +7213,14 @@ components:
       - first_name
       - gender
       - last_name
+    OpenClosedStatusEnum:
+      enum:
+      - open
+      - closed
+      type: string
+      description: |-
+        * `open` - Open
+        * `closed` - Closed
     OpenLine:
       type: object
       description: An unpaid invoice line of a student (annotated by selectors.with_line_balances).
@@ -6065,6 +7273,49 @@ components:
       - is_overdue
       - net
       - paid
+    OpenSessionBrief:
+      type: object
+      properties:
+        id:
+          type: integer
+        opened_at:
+          type: string
+          format: date-time
+        opened_by_name:
+          type: string
+          nullable: true
+        opening_balance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        expected:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          description: Cash that should be in the register now.
+      required:
+      - expected
+      - id
+      - opened_at
+      - opened_by_name
+      - opening_balance
+    OpenSessionRequest:
+      type: object
+      properties:
+        register:
+          type: integer
+        opening_balance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          nullable: true
+          description: Defaults to the cash counted at the last closing.
+        note:
+          type: string
+          default: ''
+          maxLength: 255
+      required:
+      - register
     OwnerTypeEnum:
       enum:
       - student
@@ -6098,6 +7349,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AuditLog'
+    PaginatedCashSessionList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/CashSession'
     PaginatedClassGroupList:
       type: object
       required:
@@ -6144,6 +7418,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Enrollment'
+    PaginatedExpenseList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Expense'
     PaginatedGuardianLinkList:
       type: object
       required:
@@ -6282,6 +7579,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/PlatformSchool'
+    PaginatedRefundList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Refund'
     PaginatedStaffList:
       type: object
       required:
@@ -6414,12 +7734,21 @@ components:
           type: string
           format: date
         status:
-          $ref: '#/components/schemas/YearStatusEnum'
+          $ref: '#/components/schemas/OpenClosedStatusEnum'
         term_count:
           type: integer
           maximum: 6
           minimum: 0
           writeOnly: true
+    PatchedCashRegisterRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        is_active:
+          type: boolean
     PatchedClassGroupRequest:
       type: object
       properties:
@@ -6931,6 +8260,11 @@ components:
         reversal_reason:
           type: string
           readOnly: true
+        cash_session:
+          allOf:
+          - $ref: '#/components/schemas/CashSessionRef'
+          nullable: true
+          readOnly: true
         allocations:
           type: array
           items:
@@ -6940,6 +8274,7 @@ components:
       - allocated
       - allocations
       - amount
+      - cash_session
       - created_at
       - date
       - id
@@ -7240,6 +8575,52 @@ components:
       required:
       - promoted
       - skipped
+    ReasonRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 255
+      required:
+      - reason
+    RecordExpenseRequest:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+          description: Defaults to today; never in the future.
+        category:
+          $ref: '#/components/schemas/ExpenseCategoryEnum'
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        method:
+          $ref: '#/components/schemas/PaymentMethodEnum'
+        payee:
+          type: string
+          default: ''
+          maxLength: 150
+        reference:
+          type: string
+          default: ''
+          maxLength: 100
+        description:
+          type: string
+          minLength: 1
+          maxLength: 255
+        cash_session:
+          type: integer
+          nullable: true
+          description: 'Cash only: the open session the money goes through. Leave
+            it out when one register is open.'
+      required:
+      - amount
+      - category
+      - description
+      - method
     RecordPaymentAllocationRequest:
       type: object
       properties:
@@ -7285,10 +8666,135 @@ components:
             $ref: '#/components/schemas/RecordPaymentAllocationRequest'
           description: The lines this payment pays. Leave it out to pay the oldest
             due lines first; an empty list keeps the whole amount as credit.
+        cash_session:
+          type: integer
+          nullable: true
+          description: 'Cash only: the open session the money goes through. Leave
+            it out when one register is open.'
       required:
       - amount
       - method
       - student
+    RecordRefundRequest:
+      type: object
+      properties:
+        student:
+          type: integer
+        date:
+          type: string
+          format: date
+          description: Defaults to today; never in the future.
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          description: At most the student's credit.
+        method:
+          $ref: '#/components/schemas/PaymentMethodEnum'
+        reference:
+          type: string
+          default: ''
+          maxLength: 100
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 255
+        cash_session:
+          type: integer
+          nullable: true
+          description: 'Cash only: the open session the money goes through. Leave
+            it out when one register is open.'
+      required:
+      - amount
+      - method
+      - reason
+      - student
+    Refund:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        student:
+          type: integer
+          readOnly: true
+        student_name:
+          type: string
+          readOnly: true
+        student_number:
+          type: string
+          readOnly: true
+        date:
+          type: string
+          format: date
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+        method:
+          allOf:
+          - $ref: '#/components/schemas/PaymentMethodEnum'
+          readOnly: true
+        reference:
+          type: string
+          readOnly: true
+        reason:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/RefundStatusEnum'
+          readOnly: true
+        refunded_by_name:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        cancelled_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        cancelled_by_name:
+          type: string
+          readOnly: true
+        cancel_reason:
+          type: string
+          readOnly: true
+        cash_session:
+          allOf:
+          - $ref: '#/components/schemas/CashSessionRef'
+          nullable: true
+          readOnly: true
+      required:
+      - amount
+      - cancel_reason
+      - cancelled_at
+      - cancelled_by_name
+      - cash_session
+      - created_at
+      - date
+      - id
+      - method
+      - reason
+      - reference
+      - refunded_by_name
+      - status
+      - student
+      - student_name
+      - student_number
+    RefundStatusEnum:
+      enum:
+      - posted
+      - cancelled
+      type: string
+      description: |-
+        * `posted` - Posted
+        * `cancelled` - Cancelled
     RegisterSchoolRequest:
       type: object
       properties:
@@ -7574,14 +9080,24 @@ components:
           $ref: '#/components/schemas/SchoolStatusEnum'
       required:
       - status
-    SourceEnum:
-      enum:
-      - enrolment
-      - manual
-      type: string
-      description: |-
-        * `enrolment` - Enrolment fees
-        * `manual` - Manual
+    SourceTotal:
+      type: object
+      properties:
+        source:
+          $ref: '#/components/schemas/CashSourceEnum'
+        direction:
+          $ref: '#/components/schemas/CashDirectionEnum'
+        count:
+          type: integer
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+      required:
+      - count
+      - direction
+      - source
+      - total
     Staff:
       type: object
       properties:
@@ -8215,14 +9731,6 @@ components:
           maxLength: 200
       required:
       - reason
-    YearStatusEnum:
-      enum:
-      - open
-      - closed
-      type: string
-      description: |-
-        * `open` - Open
-        * `closed` - Closed
   securitySchemes:
     jwtAuth:
       type: http

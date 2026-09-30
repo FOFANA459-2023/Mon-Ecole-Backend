@@ -9,5 +9,7 @@ router.register("student-discounts", api.StudentDiscountViewSet, basename="stude
 router.register("invoices", api.InvoiceViewSet, basename="invoice")
 router.register("payments", api.PaymentViewSet, basename="payment")
 router.register("student-accounts", api.StudentAccountViewSet, basename="student-account")
+router.register("expenses", api.ExpenseViewSet, basename="expense")
+router.register("refunds", api.RefundViewSet, basename="refund")
 
 urlpatterns = router.urls

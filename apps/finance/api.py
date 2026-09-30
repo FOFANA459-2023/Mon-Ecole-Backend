@@ -7,6 +7,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from apps.cashregister.models import CashMovement
 from apps.core.pdf import pdf_response
 from apps.core.permissions import HasSchoolPermission
 from apps.core.viewsets import TenantModelViewSet
@@ -14,18 +15,21 @@ from apps.people.models import Student
 
 from . import services
 from .models import (
+    Expense,
     FeeCategory,
     FeeSchedule,
     Invoice,
     InvoiceLine,
     Payment,
     PaymentAllocation,
+    Refund,
     StudentDiscount,
 )
 from .pdf import invoice_pdf, receipt_pdf
 from .selectors import PaymentStatus, student_account, with_allocated, with_balances, with_line_balances
 from .serializers import (
     CancelInvoiceSerializer,
+    ExpenseSerializer,
     FeeCategorySerializer,
     FeeScheduleSerializer,
     GenerateInvoicesResultSerializer,
@@ -35,7 +39,11 @@ from .serializers import (
     ManualInvoiceSerializer,
     PaymentListSerializer,
     PaymentSerializer,
+    ReasonSerializer,
+    RecordExpenseSerializer,
     RecordPaymentSerializer,
+    RecordRefundSerializer,
+    RefundSerializer,
     ReversePaymentSerializer,
     StudentAccountSerializer,
     StudentDiscountSerializer,
@@ -43,6 +51,8 @@ from .serializers import (
 
 VIEW = ["finance.view"]
 MANAGE_FEES = ["finance.fees.manage"]
+# The cash movements of a payment, an expense or a refund, with their session (for `cash_session`).
+CASH_MOVEMENTS = Prefetch("cash_movements", queryset=CashMovement.objects.select_related("session__register"))
 
 
 class FeeCategoryViewSet(TenantModelViewSet):
@@ -223,7 +233,8 @@ class PaymentViewSet(TenantModelViewSet):
                     queryset=PaymentAllocation.objects.select_related("invoice_line__invoice").order_by(
                         "invoice_line__due_date", "id"
                     ),
-                )
+                ),
+                CASH_MOVEMENTS,
             )
         invoice = self.request.query_params.get("invoice")
         if invoice:
@@ -256,6 +267,7 @@ class PaymentViewSet(TenantModelViewSet):
             payer_name=data["payer_name"],
             note=data["note"],
             allocations=None if allocations is None else [dict(item) for item in allocations],
+            cash_session=data.get("cash_session"),
             request=request,
         )
         return self._out(payment, status.HTTP_201_CREATED)
@@ -299,3 +311,118 @@ class StudentAccountViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
             **student_account(student),
         }
         return Response(StudentAccountSerializer(data, context=self.get_serializer_context()).data)
+
+
+class ExpenseViewSet(TenantModelViewSet):
+    """Money the school spends: recorded and cancelled, never edited or deleted."""
+
+    queryset = Expense.objects.select_related("created_by", "cancelled_by").prefetch_related(CASH_MOVEMENTS)
+    serializer_class = ExpenseSerializer
+    audit_module = "finance"
+    http_method_names = ["get", "post", "head", "options"]
+    filterset_fields = {
+        "category": ["exact"],
+        "method": ["exact"],
+        "status": ["exact"],
+        "date": ["gte", "lte"],
+        "created_by": ["exact"],
+    }
+    search_fields = ["number", "payee", "reference", "description"]
+    ordering_fields = ["date", "number", "amount"]
+    ordering = ["-date", "-id"]
+    required_permissions = {
+        "list": VIEW,
+        "retrieve": VIEW,
+        "create": ["finance.expense.create"],
+        "cancel": ["finance.expense.create"],
+    }
+
+    def _out(self, expense, code=status.HTTP_200_OK):
+        expense = self.get_queryset().get(pk=expense.pk)
+        return Response(ExpenseSerializer(expense, context=self.get_serializer_context()).data, status=code)
+
+    @extend_schema(request=RecordExpenseSerializer, responses={201: ExpenseSerializer})
+    def create(self, request, *args, **kwargs):
+        serializer = RecordExpenseSerializer(data=request.data, context=self.get_serializer_context())
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        expense = services.record_expense(
+            request.school,
+            amount=data["amount"],
+            category=data["category"],
+            method=data["method"],
+            description=data["description"],
+            expense_date=data.get("date"),
+            payee=data["payee"],
+            reference=data["reference"],
+            cash_session=data.get("cash_session"),
+            request=request,
+        )
+        return self._out(expense, status.HTTP_201_CREATED)
+
+    @extend_schema(request=ReasonSerializer, responses=ExpenseSerializer)
+    @action(detail=True, methods=["post"])
+    def cancel(self, request, pk=None):
+        serializer = ReasonSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        expense = services.cancel_expense(
+            self.get_object(), reason=serializer.validated_data["reason"], request=request
+        )
+        return self._out(expense)
+
+
+class RefundViewSet(TenantModelViewSet):
+    """Student credit given back to families: recorded and cancelled, never edited or deleted."""
+
+    queryset = Refund.objects.select_related("student", "created_by", "cancelled_by").prefetch_related(
+        CASH_MOVEMENTS
+    )
+    serializer_class = RefundSerializer
+    audit_module = "finance"
+    http_method_names = ["get", "post", "head", "options"]
+    filterset_fields = {
+        "student": ["exact"],
+        "method": ["exact"],
+        "status": ["exact"],
+        "date": ["gte", "lte"],
+    }
+    search_fields = ["student__first_name", "student__last_name", "student__student_number", "reason"]
+    ordering_fields = ["date", "amount"]
+    ordering = ["-date", "-id"]
+    required_permissions = {
+        "list": VIEW,
+        "retrieve": VIEW,
+        "create": ["finance.refund"],
+        "cancel": ["finance.refund"],
+    }
+
+    def _out(self, refund, code=status.HTTP_200_OK):
+        refund = self.get_queryset().get(pk=refund.pk)
+        return Response(RefundSerializer(refund, context=self.get_serializer_context()).data, status=code)
+
+    @extend_schema(request=RecordRefundSerializer, responses={201: RefundSerializer})
+    def create(self, request, *args, **kwargs):
+        serializer = RecordRefundSerializer(data=request.data, context=self.get_serializer_context())
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        refund = services.record_refund(
+            data["student"],
+            amount=data["amount"],
+            method=data["method"],
+            reason=data["reason"],
+            refund_date=data.get("date"),
+            reference=data["reference"],
+            cash_session=data.get("cash_session"),
+            request=request,
+        )
+        return self._out(refund, status.HTTP_201_CREATED)
+
+    @extend_schema(request=ReasonSerializer, responses=RefundSerializer)
+    @action(detail=True, methods=["post"])
+    def cancel(self, request, pk=None):
+        serializer = ReasonSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        refund = services.cancel_refund(
+            self.get_object(), reason=serializer.validated_data["reason"], request=request
+        )
+        return self._out(refund)

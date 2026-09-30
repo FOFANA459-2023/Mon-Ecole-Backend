@@ -85,7 +85,9 @@ def colon(language: str) -> str:
     return " : " if language == "fr" else ": "
 
 
-def _header(school, title: str, number_label: str, number: str, date_line: str, width: float, logo_mm: float):
+def document_header(
+    school, title: str, number_label: str, number: str, date_line: str, width: float, logo_mm: float
+):
     logo = image_reader(school.logo)
     logo_column = (logo_mm + 4) * mm if logo else 0
     contact = " · ".join(escape(x) for x in [school.address, school.phone, school.email] if x)
@@ -127,7 +129,7 @@ def invoice_pdf(invoice) -> bytes:
     width = A4[0] - 32 * mm
     story = []
 
-    header = _header(
+    header = document_header(
         school,
         L["invoice"],
         L["number"],
@@ -311,7 +313,7 @@ def receipt_pdf(payment) -> bytes:
     )
     width = A5[0] - 22 * mm
     story = [
-        _header(
+        document_header(
             school,
             L["receipt"],
             L["number"],

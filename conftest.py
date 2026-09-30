@@ -176,3 +176,14 @@ def fees(school, year, level, tuition, registration):
         amount=Decimal("250000"),
         installments=[{"label": "", "due_date": "2026-09-01", "amount": "250000"}],
     )
+
+
+@pytest.fixture
+def cash_session(school):
+    """The school's main register, open since 1 September 2026 with an empty float."""
+    from apps.cashregister import services as cash
+
+    session = cash.open_session(cash.default_register(school), opening_balance=Decimal("0"))
+    session.opened_at = timezone.make_aware(timezone.datetime(2026, 9, 1, 7, 30))
+    session.save(update_fields=["opened_at"])
+    return session

@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "apps.dashboard",
     "apps.imports",
     "apps.finance",
+    "apps.cashregister",
 ]
 
 MIDDLEWARE = [
@@ -197,16 +198,24 @@ SPECTACULAR_SETTINGS = {
         "GenderEnum": "apps.people.models.Gender",
         "SchoolStatusEnum": "apps.schools.models.School.Status",
         "ArchiveStatusEnum": "apps.people.models.Student.Status",
-        "YearStatusEnum": "apps.academics.models.AcademicYear.Status",
+        # Academic years and cash sessions share these choices (open / closed).
+        "OpenClosedStatusEnum": "apps.academics.models.AcademicYear.Status",
         "EnrollmentStatusEnum": "apps.enrollments.models.Enrollment.Status",
         "KindEnum": "apps.enrollments.models.Enrollment.Kind",
         "InvoiceStatusEnum": "apps.finance.models.Invoice.Status",
+        "InvoiceSourceEnum": "apps.finance.models.Invoice.Source",
+        "DocumentCategoryEnum": "apps.documents.models.Document.Category",
         "FeeCategoryKindEnum": "apps.finance.models.FeeCategory.Kind",
         "DiscountKindEnum": "apps.finance.models.StudentDiscount.Kind",
         "DiscountReasonEnum": "apps.finance.models.StudentDiscount.Reason",
         "FeeAppliesToEnum": "apps.finance.models.FeeSchedule.AppliesTo",
         "PaymentMethodEnum": "apps.finance.models.Payment.Method",
         "PaymentStateEnum": "apps.finance.models.Payment.Status",
+        "ExpenseCategoryEnum": "apps.finance.models.Expense.Category",
+        "ExpenseStatusEnum": "apps.finance.models.Expense.Status",
+        "RefundStatusEnum": "apps.finance.models.Refund.Status",
+        "CashDirectionEnum": "apps.cashregister.models.CashMovement.Direction",
+        "CashSourceEnum": "apps.cashregister.models.CashMovement.Source",
     },
 }
 

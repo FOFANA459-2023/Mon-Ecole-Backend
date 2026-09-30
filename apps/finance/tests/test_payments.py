@@ -13,6 +13,13 @@ from apps.finance.words import amount_in_words, english, french
 PAID_ON = date(2026, 9, 15)
 
 
+@pytest.fixture(autouse=True)
+def _open_register(request):
+    """Cash payments need an open register; tests that touch the database get one."""
+    if "db" in request.fixturenames or request.node.get_closest_marker("django_db"):
+        request.getfixturevalue("cash_session")
+
+
 @pytest.fixture
 def enrolled(school, fees, make_class, make_student):
     """A new student enrolled in 7ème A: 250 000 registration + 3 × 1 000 000 tuition = 3 250 000 GNF."""

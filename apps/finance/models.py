@@ -287,3 +287,86 @@ class PaymentAllocation(TimeStampedModel):
 
     def __str__(self):
         return f"{self.payment.number} → {self.invoice_line_id}: {self.amount}"
+
+
+class Expense(TenantScopedModel):
+    """Money the school spent. Never edited or deleted: a mistake is cancelled (with a reason) and recorded
+    again. An expense paid in cash leaves the open cash session. `created_by` recorded it."""
+
+    class Category(models.TextChoices):
+        SALARIES = "salaries", _("Salaries and allowances")
+        RENT = "rent", _("Rent")
+        UTILITIES = "utilities", _("Water, electricity, internet")
+        SUPPLIES = "supplies", _("Office and teaching supplies")
+        MAINTENANCE = "maintenance", _("Repairs and maintenance")
+        TRANSPORT = "transport", _("Transport and fuel")
+        FOOD = "food", _("Food and canteen")
+        EVENTS = "events", _("Exams and events")
+        TAXES = "taxes", _("Taxes and fees")
+        OTHER = "other", _("Other")
+
+    class Status(models.TextChoices):
+        RECORDED = "recorded", _("Recorded")
+        CANCELLED = "cancelled", _("Cancelled")
+
+    number = models.CharField(max_length=30)
+    date = models.DateField()
+    category = models.CharField(max_length=20, choices=Category.choices, default=Category.OTHER)
+    amount = models.DecimalField(
+        max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES, validators=[MinValueValidator(Decimal("0.01"))]
+    )
+    method = models.CharField(max_length=20, choices=Payment.Method.choices, default=Payment.Method.CASH)
+    payee = models.CharField(max_length=150, blank=True, help_text="Who was paid.")
+    reference = models.CharField(max_length=100, blank=True, help_text="Invoice, slip or cheque number.")
+    description = models.CharField(max_length=255)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.RECORDED)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    cancelled_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    cancel_reason = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ["-date", "-id"]
+        verbose_name = "expense"
+        constraints = [
+            models.UniqueConstraint(fields=["school", "number"], name="uniq_expense_number"),
+            models.CheckConstraint(condition=Q(amount__gt=0), name="expense_amount_positive"),
+        ]
+        indexes = [models.Index(fields=["school", "date"], name="expense_school_date_idx")]
+
+    def __str__(self):
+        return self.number
+
+
+class Refund(TenantScopedModel):
+    """Credit given back to a student's family. It can never be more than the credit they have. Cancelled,
+    never deleted; a cash refund leaves the open cash session. `created_by` paid it out."""
+
+    class Status(models.TextChoices):
+        POSTED = "posted", _("Posted")
+        CANCELLED = "cancelled", _("Cancelled")
+
+    student = models.ForeignKey("people.Student", on_delete=models.PROTECT, related_name="refunds")
+    date = models.DateField()
+    amount = models.DecimalField(
+        max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES, validators=[MinValueValidator(Decimal("0.01"))]
+    )
+    method = models.CharField(max_length=20, choices=Payment.Method.choices, default=Payment.Method.CASH)
+    reference = models.CharField(max_length=100, blank=True)
+    reason = models.CharField(max_length=255)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.POSTED)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    cancelled_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    cancel_reason = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ["-date", "-id"]
+        verbose_name = "refund"
+        constraints = [models.CheckConstraint(condition=Q(amount__gt=0), name="refund_amount_positive")]
+        indexes = [models.Index(fields=["student", "status"], name="refund_student_status_idx")]
+
+    def __str__(self):
+        return f"{self.student} — {self.amount}"

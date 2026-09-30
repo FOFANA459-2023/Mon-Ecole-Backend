@@ -8,22 +8,29 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.academics.models import AcademicYear, ClassGroup, Level
+from apps.cashregister.models import CashSession
 from apps.core.serializers import TenantPrimaryKeyRelatedField
 from apps.people.models import Student
 
 from .models import (
     MONEY_DIGITS,
     MONEY_PLACES,
+    Expense,
     FeeCategory,
     FeeSchedule,
     Invoice,
     InvoiceLine,
     Payment,
     PaymentAllocation,
+    Refund,
     StudentDiscount,
 )
 from .money import ZERO, to_money
 from .selectors import PaymentStatus
+
+CASH_SESSION_HELP = (
+    "Cash only: the open session the money goes through. Leave it out when one register is open."
+)
 
 
 def _currency(serializer) -> str:
@@ -396,6 +403,20 @@ class PaymentAllocationSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class CashSessionRefSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    register_name = serializers.CharField()
+
+
+def _first_cash_session(obj) -> dict | None:
+    """The session of the movement that recorded the money (the prefetched `cash_movements`, oldest first)."""
+    movements = sorted(obj.cash_movements.all(), key=lambda m: m.pk)
+    if not movements:
+        return None
+    session = movements[0].session
+    return {"id": session.pk, "register_name": session.register.name}
+
+
 class PaymentSerializer(serializers.ModelSerializer):
     """A payment with how much of it paid invoices (the queryset is annotated by selectors.with_allocated)."""
 
@@ -406,6 +427,12 @@ class PaymentSerializer(serializers.ModelSerializer):
     allocated = _money_field(read_only=True, help_text="Paid to invoice lines.")
     unallocated = _money_field(read_only=True, help_text="Kept as the student's credit; 0 once reversed.")
     allocations = PaymentAllocationSerializer(many=True, read_only=True)
+    cash_session = serializers.SerializerMethodField()
+
+    @extend_schema_field(CashSessionRefSerializer(allow_null=True))
+    def get_cash_session(self, obj) -> dict | None:
+        """The cash session the money went into (null when it was not cash)."""
+        return _first_cash_session(obj)
 
     class Meta:
         model = Payment
@@ -429,6 +456,7 @@ class PaymentSerializer(serializers.ModelSerializer):
             "reversed_at",
             "reversed_by_name",
             "reversal_reason",
+            "cash_session",
             "allocations",
         ]
         read_only_fields = fields
@@ -436,7 +464,7 @@ class PaymentSerializer(serializers.ModelSerializer):
 
 class PaymentListSerializer(PaymentSerializer):
     class Meta(PaymentSerializer.Meta):
-        fields = [f for f in PaymentSerializer.Meta.fields if f != "allocations"]
+        fields = [f for f in PaymentSerializer.Meta.fields if f not in ("allocations", "cash_session")]
         read_only_fields = fields
 
 
@@ -459,6 +487,12 @@ class RecordPaymentSerializer(serializers.Serializer):
         help_text="The lines this payment pays. Leave it out to pay the oldest due lines first; "
         "an empty list keeps the whole amount as credit.",
     )
+    cash_session = TenantPrimaryKeyRelatedField(
+        queryset=CashSession.objects.all(),
+        required=False,
+        allow_null=True,
+        help_text=CASH_SESSION_HELP,
+    )
 
     def validate_allocations(self, value):
         if len(value) > 100:
@@ -468,6 +502,103 @@ class RecordPaymentSerializer(serializers.Serializer):
 
 class ReversePaymentSerializer(serializers.Serializer):
     reason = serializers.CharField(max_length=255)
+
+
+class ReasonSerializer(serializers.Serializer):
+    reason = serializers.CharField(max_length=255)
+
+
+class ExpenseSerializer(serializers.ModelSerializer):
+    recorded_by_name = serializers.CharField(source="created_by.full_name", read_only=True, default=None)
+    cancelled_by_name = serializers.CharField(source="cancelled_by.full_name", read_only=True, default=None)
+    cash_session = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Expense
+        fields = [
+            "id",
+            "number",
+            "date",
+            "category",
+            "amount",
+            "method",
+            "payee",
+            "reference",
+            "description",
+            "status",
+            "recorded_by_name",
+            "created_at",
+            "cancelled_at",
+            "cancelled_by_name",
+            "cancel_reason",
+            "cash_session",
+        ]
+        read_only_fields = fields
+
+    @extend_schema_field(CashSessionRefSerializer(allow_null=True))
+    def get_cash_session(self, obj) -> dict | None:
+        """The cash session the money left (null when it was not paid in cash)."""
+        return _first_cash_session(obj)
+
+
+class RecordExpenseSerializer(serializers.Serializer):
+    date = serializers.DateField(required=False, help_text="Defaults to today; never in the future.")
+    category = serializers.ChoiceField(choices=Expense.Category.choices)
+    amount = _money_field(min_value=Decimal("0.01"))
+    method = serializers.ChoiceField(choices=Payment.Method.choices)
+    payee = serializers.CharField(max_length=150, required=False, allow_blank=True, default="")
+    reference = serializers.CharField(max_length=100, required=False, allow_blank=True, default="")
+    description = serializers.CharField(max_length=255)
+    cash_session = TenantPrimaryKeyRelatedField(
+        queryset=CashSession.objects.all(), required=False, allow_null=True, help_text=CASH_SESSION_HELP
+    )
+
+
+class RefundSerializer(serializers.ModelSerializer):
+    student_name = serializers.CharField(source="student.full_name", read_only=True)
+    student_number = serializers.CharField(source="student.student_number", read_only=True)
+    refunded_by_name = serializers.CharField(source="created_by.full_name", read_only=True, default=None)
+    cancelled_by_name = serializers.CharField(source="cancelled_by.full_name", read_only=True, default=None)
+    cash_session = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Refund
+        fields = [
+            "id",
+            "student",
+            "student_name",
+            "student_number",
+            "date",
+            "amount",
+            "method",
+            "reference",
+            "reason",
+            "status",
+            "refunded_by_name",
+            "created_at",
+            "cancelled_at",
+            "cancelled_by_name",
+            "cancel_reason",
+            "cash_session",
+        ]
+        read_only_fields = fields
+
+    @extend_schema_field(CashSessionRefSerializer(allow_null=True))
+    def get_cash_session(self, obj) -> dict | None:
+        """The cash session the money left (null when it was not refunded in cash)."""
+        return _first_cash_session(obj)
+
+
+class RecordRefundSerializer(serializers.Serializer):
+    student = TenantPrimaryKeyRelatedField(queryset=Student.objects.all())
+    date = serializers.DateField(required=False, help_text="Defaults to today; never in the future.")
+    amount = _money_field(min_value=Decimal("0.01"), help_text="At most the student's credit.")
+    method = serializers.ChoiceField(choices=Payment.Method.choices)
+    reference = serializers.CharField(max_length=100, required=False, allow_blank=True, default="")
+    reason = serializers.CharField(max_length=255)
+    cash_session = TenantPrimaryKeyRelatedField(
+        queryset=CashSession.objects.all(), required=False, allow_null=True, help_text=CASH_SESSION_HELP
+    )
 
 
 class OpenLineSerializer(serializers.ModelSerializer):
