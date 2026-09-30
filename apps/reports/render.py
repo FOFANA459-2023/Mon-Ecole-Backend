@@ -51,8 +51,13 @@ def _json_value(value, kind: str, currency: str):
     return value
 
 
-def _json_row(columns: list[Column], row: dict, currency: str) -> dict:
-    out = {column.key: _json_value(row.get(column.key), column.kind_for(row), currency) for column in columns}
+def _json_row(columns: list[Column], row: dict, currency: str, *, only_given: bool = False) -> dict:
+    """`only_given`: a totals row keeps just the columns it totals, so the others stay blank (not "—")."""
+    out = {
+        column.key: _json_value(row.get(column.key), column.kind_for(row), currency)
+        for column in columns
+        if not only_given or column.key in row
+    }
     if "kind" in row:
         out["kind"] = row["kind"]
     return out
@@ -73,7 +78,11 @@ def to_json(report: Report, currency: str) -> dict:
                 "rows": [_json_row(section.columns, row, currency) for row in section.rows[:PREVIEW_ROWS]],
                 "row_count": len(section.rows),
                 "truncated": len(section.rows) > PREVIEW_ROWS,
-                "totals": _json_row(section.columns, section.totals, currency) if section.totals else None,
+                "totals": (
+                    _json_row(section.columns, section.totals, currency, only_given=True)
+                    if section.totals
+                    else None
+                ),
             }
             for section in report.sections
         ],
