@@ -3328,6 +3328,129 @@ paths:
               schema:
                 $ref: '#/components/schemas/Refund'
           description: ''
+  /api/v1/reports/finance/{key}/:
+    get:
+      operationId: reports_finance_retrieve
+      description: |-
+        Finance reports: payments, outstanding, cash, expenses and summary.
+
+        JSON for the screen (long sections are cut to 1 000 rows); `export=pdf|xlsx|csv` downloads the whole
+        report and needs finance.export. Labels follow the user's language.
+      parameters:
+      - in: query
+        name: academic_year
+        schema:
+          type: integer
+          nullable: true
+      - in: query
+        name: category
+        schema:
+          enum:
+          - salaries
+          - rent
+          - utilities
+          - supplies
+          - maintenance
+          - transport
+          - food
+          - events
+          - taxes
+          - other
+          - ''
+          type: string
+        description: |-
+          * `salaries` - Salaries and allowances
+          * `rent` - Rent
+          * `utilities` - Water, electricity, internet
+          * `supplies` - Office and teaching supplies
+          * `maintenance` - Repairs and maintenance
+          * `transport` - Transport and fuel
+          * `food` - Food and canteen
+          * `events` - Exams and events
+          * `taxes` - Taxes and fees
+          * `other` - Other
+      - in: query
+        name: class_group
+        schema:
+          type: integer
+          nullable: true
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+        description: Defaults to the first day of date_to's month.
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+        description: Defaults to today.
+      - in: query
+        name: export
+        schema:
+          enum:
+          - pdf
+          - xlsx
+          - csv
+          - ''
+          type: string
+        description: |-
+          * `pdf` - pdf
+          * `xlsx` - xlsx
+          * `csv` - csv
+      - in: path
+        name: key
+        schema:
+          type: string
+          enum:
+          - cash
+          - expenses
+          - outstanding
+          - payments
+          - summary
+        required: true
+      - in: query
+        name: method
+        schema:
+          enum:
+          - cash
+          - mobile_money
+          - bank_transfer
+          - cheque
+          - card
+          - other
+          - ''
+          type: string
+        description: |-
+          * `cash` - Cash
+          * `mobile_money` - Mobile money
+          * `bank_transfer` - Bank transfer or deposit
+          * `cheque` - Cheque
+          * `card` - Card
+          * `other` - Other
+      - in: query
+        name: overdue_only
+        schema:
+          type: boolean
+          default: false
+      - in: query
+        name: register
+        schema:
+          type: integer
+          nullable: true
+      tags:
+      - reports
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: The report (JSON) or the exported file.
   /api/v1/roles/:
     get:
       operationId: roles_list

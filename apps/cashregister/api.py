@@ -1,5 +1,4 @@
-from django.db.models import DecimalField, F, Prefetch, Q, Sum, Value
-from django.db.models.functions import Coalesce
+from django.db.models import Prefetch
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.decorators import action
@@ -7,11 +6,11 @@ from rest_framework.response import Response
 
 from apps.core.pdf import pdf_response
 from apps.core.viewsets import TenantModelViewSet
-from apps.finance.models import MONEY_DIGITS, MONEY_PLACES
 
 from . import services
 from .models import CashMovement, CashRegister, CashSession
 from .pdf import session_journal_pdf
+from .selectors import with_totals
 from .serializers import (
     CashMovementSerializer,
     CashRegisterSerializer,
@@ -23,13 +22,6 @@ from .serializers import (
 )
 
 VIEW = ["cash.view"]
-MONEY: DecimalField = DecimalField(max_digits=MONEY_DIGITS, decimal_places=MONEY_PLACES)
-
-
-def _movement_sum(direction: str) -> Coalesce:
-    return Coalesce(
-        Sum("movements__amount", filter=Q(movements__direction=direction)), Value(0, output_field=MONEY)
-    )
 
 
 class CashRegisterViewSet(TenantModelViewSet):
@@ -67,15 +59,7 @@ class CashSessionViewSet(TenantModelViewSet):
     }
 
     def get_queryset(self):
-        queryset = (
-            super()
-            .get_queryset()
-            .annotate(
-                money_in=_movement_sum(CashMovement.Direction.IN),
-                money_out=_movement_sum(CashMovement.Direction.OUT),
-            )
-            .annotate(expected=F("opening_balance") + F("money_in") - F("money_out"))
-        )
+        queryset = with_totals(super().get_queryset())
         if self.action != "list":
             queryset = queryset.prefetch_related(
                 Prefetch(

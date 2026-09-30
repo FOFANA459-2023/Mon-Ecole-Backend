@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "apps.imports",
     "apps.finance",
     "apps.cashregister",
+    "apps.reports",
 ]
 
 MIDDLEWARE = [
