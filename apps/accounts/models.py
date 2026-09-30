@@ -1,12 +1,24 @@
+from typing import ClassVar
+
 from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import UserManager as DjangoUserManager
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models.functions import Lower
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from apps.core.models import TimeStampedModel
 
 from .permissions_registry import ALL_CODES, DIRECTOR
+
+
+class UserManager(DjangoUserManager):
+    def create_superuser(self, username, email=None, password=None, **extra_fields):
+        # The platform owner is created from the command line (createsuperuser): no invitation email to
+        # confirm, so the address counts as confirmed.
+        extra_fields.setdefault("email_verified_at", timezone.now())
+        return super().create_superuser(username, email, password, **extra_fields)
 
 
 class User(AbstractUser):
@@ -24,6 +36,8 @@ class User(AbstractUser):
     invitation_expires_at = models.DateTimeField(null=True, blank=True)
 
     REQUIRED_FIELDS = ["email"]
+
+    objects: ClassVar[UserManager] = UserManager()
 
     class Meta:
         constraints = [models.UniqueConstraint(Lower("email"), name="uniq_user_email_ci")]

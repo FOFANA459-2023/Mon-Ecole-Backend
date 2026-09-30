@@ -115,3 +115,9 @@ class TestInvitationJourney:
         )
         assert response.status_code == 400
         assert "current_password" in response.json()["fields"]
+
+
+@pytest.mark.django_db
+def test_an_owner_created_from_the_command_line_can_sign_in():
+    User.objects.create_superuser("owner", "owner@test.local", "Owner-Password-2026")
+    assert login("owner@test.local", "Owner-Password-2026").status_code == 200
