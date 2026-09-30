@@ -7,6 +7,7 @@ from rest_framework.exceptions import ValidationError
 
 from apps.academics.models import AcademicYear, ClassGroup
 from apps.audit import services as audit
+from apps.finance import services as finance
 from apps.people import services as people_services
 from apps.people.models import Student
 
@@ -94,6 +95,7 @@ def enroll(
         request,
         new={"class": class_group.name, "year": class_group.academic_year.name, "kind": kind},
     )
+    finance.invoice_enrollment(enrollment, request=request)
     return enrollment
 
 
@@ -212,6 +214,7 @@ def cancel(enrollment: Enrollment, *, reason: str, request=None) -> Enrollment:
         request,
         new={"reason": reason},
     )
+    finance.cancel_unpaid_enrolment_invoices(enrollment, reason=reason, request=request)
     return enrollment
 
 
@@ -248,7 +251,7 @@ def promote(
         enrollment.status = Enrollment.Status.COMPLETED
         enrollment.ended_on = min(from_class.academic_year.end_date, timezone.localdate())
         enrollment.save(update_fields=["status", "ended_on", "updated_at"])
-        Enrollment.objects.create(
+        new_enrollment = Enrollment.objects.create(
             school=from_class.school,
             student=enrollment.student,
             academic_year=to_class.academic_year,
@@ -257,6 +260,7 @@ def promote(
             kind=Enrollment.Kind.RE_ENROLMENT,
             created_by=getattr(request, "user", None),
         )
+        finance.invoice_enrollment(new_enrollment, request=request)
     audit.record(
         "promote",
         request=request,

@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "apps.search",
     "apps.dashboard",
     "apps.imports",
+    "apps.finance",
 ]
 
 MIDDLEWARE = [
@@ -198,6 +199,12 @@ SPECTACULAR_SETTINGS = {
         "ArchiveStatusEnum": "apps.people.models.Student.Status",
         "YearStatusEnum": "apps.academics.models.AcademicYear.Status",
         "EnrollmentStatusEnum": "apps.enrollments.models.Enrollment.Status",
+        "KindEnum": "apps.enrollments.models.Enrollment.Kind",
+        "InvoiceStatusEnum": "apps.finance.models.Invoice.Status",
+        "FeeCategoryKindEnum": "apps.finance.models.FeeCategory.Kind",
+        "DiscountKindEnum": "apps.finance.models.StudentDiscount.Kind",
+        "DiscountReasonEnum": "apps.finance.models.StudentDiscount.Reason",
+        "FeeAppliesToEnum": "apps.finance.models.FeeSchedule.AppliesTo",
     },
 }
 

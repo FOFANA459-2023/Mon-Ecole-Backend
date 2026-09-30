@@ -1290,6 +1290,340 @@ paths:
               schema:
                 $ref: '#/components/schemas/Enrollment'
           description: ''
+  /api/v1/fee-categories/:
+    get:
+      operationId: fee_categories_list
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: query
+        name: is_active
+        schema:
+          type: boolean
+      - in: query
+        name: kind
+        schema:
+          type: string
+          enum:
+          - canteen
+          - exam
+          - other
+          - registration
+          - supplies
+          - transport
+          - tuition
+          - uniform
+        description: |-
+          * `registration` - Registration
+          * `tuition` - Tuition
+          * `exam` - Exams
+          * `transport` - Transport
+          * `canteen` - Canteen
+          * `uniform` - Uniform
+          * `supplies` - Books and supplies
+          * `other` - Other
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - fee-categories
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FeeCategory'
+          description: ''
+    post:
+      operationId: fee_categories_create
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      tags:
+      - fee-categories
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeeCategoryRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FeeCategoryRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FeeCategoryRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeeCategory'
+          description: ''
+  /api/v1/fee-categories/{id}/:
+    get:
+      operationId: fee_categories_retrieve
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this fee category.
+        required: true
+      tags:
+      - fee-categories
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeeCategory'
+          description: ''
+    patch:
+      operationId: fee_categories_partial_update
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this fee category.
+        required: true
+      tags:
+      - fee-categories
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedFeeCategoryRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedFeeCategoryRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedFeeCategoryRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeeCategory'
+          description: ''
+    delete:
+      operationId: fee_categories_destroy
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this fee category.
+        required: true
+      tags:
+      - fee-categories
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/fee-schedules/:
+    get:
+      operationId: fee_schedules_list
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: query
+        name: academic_year
+        schema:
+          type: integer
+      - in: query
+        name: applies_to
+        schema:
+          type: string
+          enum:
+          - all
+          - new
+          - returning
+        description: |-
+          * `all` - All students
+          * `new` - New students only
+          * `returning` - Returning students only
+      - in: query
+        name: category
+        schema:
+          type: integer
+      - in: query
+        name: level
+        schema:
+          type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - fee-schedules
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FeeSchedule'
+          description: ''
+    post:
+      operationId: fee_schedules_create
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      tags:
+      - fee-schedules
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeeScheduleRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FeeScheduleRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FeeScheduleRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeeSchedule'
+          description: ''
+  /api/v1/fee-schedules/{id}/:
+    get:
+      operationId: fee_schedules_retrieve
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this fee schedule.
+        required: true
+      tags:
+      - fee-schedules
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeeSchedule'
+          description: ''
+    patch:
+      operationId: fee_schedules_partial_update
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this fee schedule.
+        required: true
+      tags:
+      - fee-schedules
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedFeeScheduleRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedFeeScheduleRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedFeeScheduleRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeeSchedule'
+          description: ''
+    delete:
+      operationId: fee_schedules_destroy
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this fee schedule.
+        required: true
+      tags:
+      - fee-schedules
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/guardians/:
     get:
       operationId: guardians_list
@@ -1451,6 +1785,236 @@ paths:
               schema:
                 type: string
                 format: binary
+          description: ''
+  /api/v1/invoices/:
+    get:
+      operationId: invoices_list
+      description: Invoices are issued (from fee schedules or by hand) and cancelled,
+        never edited or deleted.
+      parameters:
+      - in: query
+        name: academic_year
+        schema:
+          type: integer
+      - in: query
+        name: class_group
+        schema:
+          type: integer
+      - in: query
+        name: issue_date__gte
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: issue_date__lte
+        schema:
+          type: string
+          format: date
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: payment_status
+        schema:
+          type: string
+          enum:
+          - cancelled
+          - overdue
+          - paid
+          - partial
+          - unpaid
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: source
+        schema:
+          type: string
+          enum:
+          - enrolment
+          - manual
+        description: |-
+          * `enrolment` - Enrolment fees
+          * `manual` - Manual
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - cancelled
+          - issued
+        description: |-
+          * `issued` - Issued
+          * `cancelled` - Cancelled
+      - in: query
+        name: student
+        schema:
+          type: integer
+      tags:
+      - invoices
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedInvoiceListList'
+          description: ''
+    post:
+      operationId: invoices_create
+      description: Invoices are issued (from fee schedules or by hand) and cancelled,
+        never edited or deleted.
+      tags:
+      - invoices
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ManualInvoiceRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ManualInvoiceRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ManualInvoiceRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+          description: ''
+  /api/v1/invoices/{id}/:
+    get:
+      operationId: invoices_retrieve
+      description: Invoices are issued (from fee schedules or by hand) and cancelled,
+        never edited or deleted.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this invoice.
+        required: true
+      tags:
+      - invoices
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+          description: ''
+  /api/v1/invoices/{id}/cancel/:
+    post:
+      operationId: invoices_cancel_create
+      description: Invoices are issued (from fee schedules or by hand) and cancelled,
+        never edited or deleted.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this invoice.
+        required: true
+      tags:
+      - invoices
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelInvoiceRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CancelInvoiceRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CancelInvoiceRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+          description: ''
+  /api/v1/invoices/{id}/pdf/:
+    get:
+      operationId: invoices_pdf_retrieve
+      description: Invoices are issued (from fee schedules or by hand) and cancelled,
+        never edited or deleted.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this invoice.
+        required: true
+      tags:
+      - invoices
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/invoices/generate/:
+    post:
+      operationId: invoices_generate_create
+      description: Issue the enrolment fees to every active student (of a class, or
+        of the year) who has none yet.
+      tags:
+      - invoices
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateInvoicesRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/GenerateInvoicesRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/GenerateInvoicesRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerateInvoicesResult'
           description: ''
   /api/v1/levels/:
     get:
@@ -2132,6 +2696,190 @@ paths:
               schema:
                 $ref: '#/components/schemas/Staff'
           description: ''
+  /api/v1/student-discounts/:
+    get:
+      operationId: student_discounts_list
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: query
+        name: academic_year
+        schema:
+          type: integer
+      - in: query
+        name: category
+        schema:
+          type: integer
+      - in: query
+        name: is_active
+        schema:
+          type: boolean
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: reason
+        schema:
+          type: string
+          enum:
+          - hardship
+          - other
+          - scholarship
+          - sibling
+          - staff_child
+        description: |-
+          * `scholarship` - Scholarship
+          * `sibling` - Sibling
+          * `staff_child` - Staff child
+          * `hardship` - Financial hardship
+          * `other` - Other
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: student
+        schema:
+          type: integer
+      tags:
+      - student-discounts
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedStudentDiscountList'
+          description: ''
+    post:
+      operationId: student_discounts_create
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      tags:
+      - student-discounts
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudentDiscountRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StudentDiscountRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StudentDiscountRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentDiscount'
+          description: ''
+  /api/v1/student-discounts/{id}/:
+    get:
+      operationId: student_discounts_retrieve
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this student discount.
+        required: true
+      tags:
+      - student-discounts
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentDiscount'
+          description: ''
+    patch:
+      operationId: student_discounts_partial_update
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this student discount.
+        required: true
+      tags:
+      - student-discounts
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedStudentDiscountRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedStudentDiscountRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedStudentDiscountRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentDiscount'
+          description: ''
+    delete:
+      operationId: student_discounts_destroy
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this student discount.
+        required: true
+      tags:
+      - student-discounts
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/students/:
     get:
       operationId: students_list
@@ -3262,6 +4010,15 @@ components:
     BlankEnum:
       enum:
       - ''
+    CancelInvoiceRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 255
+      required:
+      - reason
     CancelRequest:
       type: object
       properties:
@@ -3479,6 +4236,28 @@ components:
         * `primary` - Primary
         * `lower_secondary` - Lower secondary
         * `upper_secondary` - Upper secondary
+        * `other` - Other
+    DiscountKindEnum:
+      enum:
+      - percent
+      - fixed
+      type: string
+      description: |-
+        * `percent` - Percentage
+        * `fixed` - Fixed amount
+    DiscountReasonEnum:
+      enum:
+      - scholarship
+      - sibling
+      - staff_child
+      - hardship
+      - other
+      type: string
+      description: |-
+        * `scholarship` - Scholarship
+        * `sibling` - Sibling
+        * `staff_child` - Staff child
+        * `hardship` - Financial hardship
         * `other` - Other
     Document:
       type: object
@@ -3711,6 +4490,149 @@ components:
       - id
       - photo_url
       - student_number
+    FeeAppliesToEnum:
+      enum:
+      - all
+      - new
+      - returning
+      type: string
+      description: |-
+        * `all` - All students
+        * `new` - New students only
+        * `returning` - Returning students only
+    FeeCategory:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        kind:
+          $ref: '#/components/schemas/FeeCategoryKindEnum'
+        description:
+          type: string
+          maxLength: 255
+        order:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        is_active:
+          type: boolean
+      required:
+      - id
+      - name
+    FeeCategoryKindEnum:
+      enum:
+      - registration
+      - tuition
+      - exam
+      - transport
+      - canteen
+      - uniform
+      - supplies
+      - other
+      type: string
+      description: |-
+        * `registration` - Registration
+        * `tuition` - Tuition
+        * `exam` - Exams
+        * `transport` - Transport
+        * `canteen` - Canteen
+        * `uniform` - Uniform
+        * `supplies` - Books and supplies
+        * `other` - Other
+    FeeCategoryRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        kind:
+          $ref: '#/components/schemas/FeeCategoryKindEnum'
+        description:
+          type: string
+          maxLength: 255
+        order:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        is_active:
+          type: boolean
+      required:
+      - name
+    FeeSchedule:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        academic_year:
+          type: integer
+        academic_year_name:
+          type: string
+          readOnly: true
+        level:
+          type: integer
+        level_name:
+          type: string
+          readOnly: true
+        category:
+          type: integer
+        category_name:
+          type: string
+          readOnly: true
+        applies_to:
+          allOf:
+          - $ref: '#/components/schemas/FeeAppliesToEnum'
+          default: all
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        installments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Installment'
+      required:
+      - academic_year
+      - academic_year_name
+      - amount
+      - category
+      - category_name
+      - id
+      - level
+      - level_name
+    FeeScheduleRequest:
+      type: object
+      properties:
+        academic_year:
+          type: integer
+        level:
+          type: integer
+        category:
+          type: integer
+        applies_to:
+          allOf:
+          - $ref: '#/components/schemas/FeeAppliesToEnum'
+          default: all
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        installments:
+          type: array
+          items:
+            $ref: '#/components/schemas/InstallmentRequest'
+      required:
+      - academic_year
+      - amount
+      - category
+      - level
     GenderEnum:
       enum:
       - M
@@ -3719,6 +4641,31 @@ components:
       description: |-
         * `M` - Male
         * `F` - Female
+    GenerateInvoicesRequest:
+      type: object
+      properties:
+        academic_year:
+          type: integer
+        class_group:
+          type: integer
+          nullable: true
+      required:
+      - academic_year
+    GenerateInvoicesResult:
+      type: object
+      properties:
+        created:
+          type: integer
+        skipped:
+          type: integer
+          description: Students who already had this year's enrolment invoice.
+        without_fees:
+          type: integer
+          description: Students whose level has no fees set up for the year.
+      required:
+      - created
+      - skipped
+      - without_fees
     GrantAccessRequest:
       type: object
       properties:
@@ -3912,6 +4859,330 @@ components:
           description: false = check only; true = save if all valid
       required:
       - file
+    Installment:
+      type: object
+      properties:
+        label:
+          type: string
+          default: ''
+          maxLength: 60
+        due_date:
+          type: string
+          format: date
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+      required:
+      - amount
+      - due_date
+    InstallmentRequest:
+      type: object
+      properties:
+        label:
+          type: string
+          default: ''
+          maxLength: 60
+        due_date:
+          type: string
+          format: date
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+      required:
+      - amount
+      - due_date
+    Invoice:
+      type: object
+      description: An invoice with its computed figures (the queryset is annotated
+        by selectors.with_balances).
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        student:
+          type: integer
+          readOnly: true
+        student_name:
+          type: string
+          readOnly: true
+        student_number:
+          type: string
+          readOnly: true
+        enrollment:
+          type: integer
+          readOnly: true
+          nullable: true
+        class_name:
+          type: string
+          readOnly: true
+        academic_year:
+          type: integer
+          readOnly: true
+        academic_year_name:
+          type: string
+          readOnly: true
+        issue_date:
+          type: string
+          format: date
+          readOnly: true
+        source:
+          allOf:
+          - $ref: '#/components/schemas/SourceEnum'
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/InvoiceStatusEnum'
+          readOnly: true
+        subtotal:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+        discount_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+        amount_paid:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+        balance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+        overdue_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+        next_due_date:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        payment_status:
+          allOf:
+          - $ref: '#/components/schemas/PaymentStatusEnum'
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        cancelled_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        cancel_reason:
+          type: string
+          readOnly: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/InvoiceLine'
+          readOnly: true
+      required:
+      - academic_year
+      - academic_year_name
+      - amount_paid
+      - balance
+      - cancel_reason
+      - cancelled_at
+      - class_name
+      - discount_total
+      - enrollment
+      - id
+      - issue_date
+      - lines
+      - next_due_date
+      - notes
+      - number
+      - overdue_amount
+      - payment_status
+      - source
+      - status
+      - student
+      - student_name
+      - student_number
+      - subtotal
+      - total
+    InvoiceLine:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        category:
+          type: integer
+        category_name:
+          type: string
+          readOnly: true
+        description:
+          type: string
+          maxLength: 200
+        due_date:
+          type: string
+          format: date
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        discount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        net:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+      required:
+      - amount
+      - category
+      - category_name
+      - description
+      - due_date
+      - id
+      - net
+    InvoiceList:
+      type: object
+      description: An invoice with its computed figures (the queryset is annotated
+        by selectors.with_balances).
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        number:
+          type: string
+          readOnly: true
+        student:
+          type: integer
+          readOnly: true
+        student_name:
+          type: string
+          readOnly: true
+        student_number:
+          type: string
+          readOnly: true
+        enrollment:
+          type: integer
+          readOnly: true
+          nullable: true
+        class_name:
+          type: string
+          readOnly: true
+        academic_year:
+          type: integer
+          readOnly: true
+        academic_year_name:
+          type: string
+          readOnly: true
+        issue_date:
+          type: string
+          format: date
+          readOnly: true
+        source:
+          allOf:
+          - $ref: '#/components/schemas/SourceEnum'
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/InvoiceStatusEnum'
+          readOnly: true
+        subtotal:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+        discount_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+        total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+        amount_paid:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+        balance:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+        overdue_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+        next_due_date:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        payment_status:
+          allOf:
+          - $ref: '#/components/schemas/PaymentStatusEnum'
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        cancelled_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        cancel_reason:
+          type: string
+          readOnly: true
+      required:
+      - academic_year
+      - academic_year_name
+      - amount_paid
+      - balance
+      - cancel_reason
+      - cancelled_at
+      - class_name
+      - discount_total
+      - enrollment
+      - id
+      - issue_date
+      - next_due_date
+      - notes
+      - number
+      - overdue_amount
+      - payment_status
+      - source
+      - status
+      - student
+      - student_name
+      - student_number
+      - subtotal
+      - total
+    InvoiceStatusEnum:
+      enum:
+      - issued
+      - cancelled
+      type: string
+      description: |-
+        * `issued` - Issued
+        * `cancelled` - Cancelled
     KindEnum:
       enum:
       - new
@@ -3989,6 +5260,53 @@ components:
       required:
       - login
       - password
+    ManualInvoiceLineRequest:
+      type: object
+      properties:
+        category:
+          type: integer
+        description:
+          type: string
+          minLength: 1
+          maxLength: 200
+        due_date:
+          type: string
+          format: date
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        discount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          default: '0.00'
+      required:
+      - amount
+      - category
+      - description
+      - due_date
+    ManualInvoiceRequest:
+      type: object
+      properties:
+        student:
+          type: integer
+        academic_year:
+          type: integer
+        issue_date:
+          type: string
+          format: date
+        notes:
+          type: string
+          default: ''
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/ManualInvoiceLineRequest'
+      required:
+      - academic_year
+      - lines
+      - student
     Member:
       type: object
       properties:
@@ -4258,6 +5576,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Guardian'
+    PaginatedInvoiceListList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/InvoiceList'
     PaginatedMemberList:
       type: object
       required:
@@ -4304,6 +5645,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Staff'
+    PaginatedStudentDiscountList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/StudentDiscount'
     PaginatedStudentListList:
       type: object
       required:
@@ -4453,6 +5817,46 @@ components:
           maxLength: 200
         notes:
           type: string
+    PatchedFeeCategoryRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        kind:
+          $ref: '#/components/schemas/FeeCategoryKindEnum'
+        description:
+          type: string
+          maxLength: 255
+        order:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        is_active:
+          type: boolean
+    PatchedFeeScheduleRequest:
+      type: object
+      properties:
+        academic_year:
+          type: integer
+        level:
+          type: integer
+        category:
+          type: integer
+        applies_to:
+          allOf:
+          - $ref: '#/components/schemas/FeeAppliesToEnum'
+          default: all
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        installments:
+          type: array
+          items:
+            $ref: '#/components/schemas/InstallmentRequest'
     PatchedGuardianLinkUpdateRequest:
       type: object
       properties:
@@ -4683,6 +6087,30 @@ components:
           type: string
           format: date
           nullable: true
+    PatchedStudentDiscountRequest:
+      type: object
+      properties:
+        student:
+          type: integer
+        academic_year:
+          type: integer
+        category:
+          type: integer
+          nullable: true
+        kind:
+          $ref: '#/components/schemas/DiscountKindEnum'
+        value:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        reason:
+          $ref: '#/components/schemas/DiscountReasonEnum'
+        note:
+          type: string
+          maxLength: 255
+        is_active:
+          type: boolean
+          default: true
     PatchedStudentRequest:
       type: object
       properties:
@@ -4765,6 +6193,20 @@ components:
         end_date:
           type: string
           format: date
+    PaymentStatusEnum:
+      enum:
+      - paid
+      - partial
+      - unpaid
+      - overdue
+      - cancelled
+      type: string
+      description: |-
+        * `paid` - paid
+        * `partial` - partial
+        * `unpaid` - unpaid
+        * `overdue` - overdue
+        * `cancelled` - cancelled
     PhotoRequest:
       type: object
       properties:
@@ -5051,6 +6493,14 @@ components:
       description: |-
         * `active` - Active
         * `suspended` - Suspended
+    SourceEnum:
+      enum:
+      - enrolment
+      - manual
+      type: string
+      description: |-
+        * `enrolment` - Enrolment fees
+        * `manual` - Manual
     Staff:
       type: object
       properties:
@@ -5299,6 +6749,82 @@ components:
       - photo_url
       - primary_guardian
       - status
+    StudentDiscount:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        student:
+          type: integer
+        student_name:
+          type: string
+          readOnly: true
+        student_number:
+          type: string
+          readOnly: true
+        academic_year:
+          type: integer
+        academic_year_name:
+          type: string
+          readOnly: true
+        category:
+          type: integer
+          nullable: true
+        category_name:
+          type: string
+          readOnly: true
+        kind:
+          $ref: '#/components/schemas/DiscountKindEnum'
+        value:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        reason:
+          $ref: '#/components/schemas/DiscountReasonEnum'
+        note:
+          type: string
+          maxLength: 255
+        is_active:
+          type: boolean
+          default: true
+      required:
+      - academic_year
+      - academic_year_name
+      - category_name
+      - id
+      - student
+      - student_name
+      - student_number
+      - value
+    StudentDiscountRequest:
+      type: object
+      properties:
+        student:
+          type: integer
+        academic_year:
+          type: integer
+        category:
+          type: integer
+          nullable: true
+        kind:
+          $ref: '#/components/schemas/DiscountKindEnum'
+        value:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        reason:
+          $ref: '#/components/schemas/DiscountReasonEnum'
+        note:
+          type: string
+          maxLength: 255
+        is_active:
+          type: boolean
+          default: true
+      required:
+      - academic_year
+      - student
+      - value
     StudentList:
       type: object
       properties:

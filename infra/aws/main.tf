@@ -255,8 +255,12 @@ resource "aws_iam_role" "deploy" {
       Condition = {
         StringEquals = {
           "${local.oidc_host}:aud" = "sts.amazonaws.com"
-          # Only jobs running in this repository's GitHub environment of the same name.
-          "${local.oidc_host}:sub" = "repo:${var.github_repository}:environment:${var.environment}"
+          # Only jobs running in this repository's GitHub environment of the same name (subject with the
+          # immutable owner/repository IDs, as GitHub now issues it, or in the older name-only form).
+          "${local.oidc_host}:sub" = [
+            "repo:${var.github_repository_ids}:environment:${var.environment}",
+            "repo:${var.github_repository}:environment:${var.environment}",
+          ]
         }
       }
     }]
