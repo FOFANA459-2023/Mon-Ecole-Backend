@@ -9008,6 +9008,9 @@ components:
       - first_name
       - gender
       - last_name
+    NullEnum:
+      enum:
+      - null
     OpenClosedStatusEnum:
       enum:
       - open
@@ -10804,7 +10807,17 @@ components:
         student_number:
           type: string
         status:
-          $ref: '#/components/schemas/AttendanceStatusEnum'
+          nullable: true
+          description: |-
+            Null = not marked yet.
+
+            * `present` - Present
+            * `absent` - Absent
+            * `late` - Late
+            * `excused` - Excused absence
+          oneOf:
+          - $ref: '#/components/schemas/AttendanceStatusEnum'
+          - $ref: '#/components/schemas/NullEnum'
         minutes_late:
           type: integer
           nullable: true
@@ -11518,7 +11531,18 @@ components:
         recorded:
           type: boolean
         status:
-          $ref: '#/components/schemas/StaffAttendanceStatusEnum'
+          nullable: true
+          description: |-
+            Null = not recorded yet.
+
+            * `present` - Present
+            * `absent` - Absent
+            * `late` - Late
+            * `excused` - Excused absence
+            * `leave` - On leave
+          oneOf:
+          - $ref: '#/components/schemas/StaffAttendanceStatusEnum'
+          - $ref: '#/components/schemas/NullEnum'
         minutes_late:
           type: integer
           nullable: true

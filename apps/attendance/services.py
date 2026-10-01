@@ -1,4 +1,5 @@
-"""Taking registers. Everyone starts present; the teacher marks who is absent, late or excused.
+"""Taking registers. Nobody is marked in advance: the teacher marks every student present, absent, late
+or excused themselves.
 
 A register can be taken (and changed) on the day by the class's teachers. Changing an earlier day needs
 `attendance.edit`, and every change is written to the audit log (old → new). No register for a future day.
@@ -94,8 +95,8 @@ def _describe(record) -> str:
 
 @transaction.atomic
 def save_register(class_group: ClassGroup, day: date, entries: list[dict], *, request=None) -> ClassRegister:
-    """Record the class's register for the day. Students left out of `entries` are present on a new
-    register and unchanged on an existing one."""
+    """Record the class's register for the day. Every student must be marked the first time; on a register
+    already taken, students left out of `entries` keep what was recorded."""
     check_day(class_group, day)
     if request is not None and not can_change(request, class_group, day):
         if day < school_today(class_group.school) and can_take(request, class_group):
@@ -120,18 +121,25 @@ def save_register(class_group: ClassGroup, day: date, entries: list[dict], *, re
             given[entry["enrollment"]] = entry
     if errors:
         raise ValidationError({"records": errors})
+    unmarked = [pk for pk in students if pk not in given and pk not in existing]
+    if unmarked:
+        raise ValidationError(
+            {
+                "records": [
+                    _("Mark every student: %(count)s still have no attendance.") % {"count": len(unmarked)}
+                ]
+            }
+        )
 
     old: dict[str, str | None] = {}
     new: dict[str, str | None] = {}
     for pk, enrollment in students.items():
         given_entry = given.get(pk)
         record = existing.get(pk)
-        if given_entry is None and record is not None:
+        if given_entry is None:
             continue
         status, minutes, note = _clean(
-            given_entry["status"] if given_entry else Status.PRESENT,
-            given_entry.get("minutes_late") if given_entry else None,
-            given_entry.get("note", "") if given_entry else "",
+            given_entry["status"], given_entry.get("minutes_late"), given_entry.get("note", "")
         )
         if record is None:
             record = AttendanceRecord(

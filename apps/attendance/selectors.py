@@ -87,7 +87,7 @@ def day_overview(request, day: date) -> list[dict[str, Any]]:
 
 
 def register_sheet(request, class_group: ClassGroup, day: date) -> dict[str, Any]:
-    """The register for one class and day: what was recorded, or everyone present when not taken yet."""
+    """The register for one class and day: what was recorded; students not marked yet have no status."""
     register = (
         ClassRegister.objects.filter(class_group=class_group, date=day)
         .select_related("created_by", "updated_by")
@@ -103,7 +103,7 @@ def register_sheet(request, class_group: ClassGroup, day: date) -> dict[str, Any
                 "student": enrollment.student_id,
                 "student_name": enrollment.student.full_name,
                 "student_number": enrollment.student.student_number,
-                "status": record.status if record else Status.PRESENT,
+                "status": record.status if record else None,
                 "minutes_late": record.minutes_late if record else None,
                 "note": record.note if record else "",
             }
@@ -237,7 +237,7 @@ def student_summary(student, academic_year) -> dict[str, Any]:
 
 
 def staff_sheet(school, day: date) -> dict[str, Any]:
-    """Every member of staff expected that day, with what was recorded (present when nothing yet)."""
+    """Every member of staff expected that day, with what was recorded (no status when nothing yet)."""
     from .models import StaffAttendance
     from .services import staff_on
 
@@ -254,7 +254,7 @@ def staff_sheet(school, day: date) -> dict[str, Any]:
                 "position": s.position,
                 "staff_type": s.staff_type,
                 "recorded": s.pk in recorded,
-                "status": recorded[s.pk].status if s.pk in recorded else StaffAttendance.StaffStatus.PRESENT,
+                "status": recorded[s.pk].status if s.pk in recorded else None,
                 "minutes_late": recorded[s.pk].minutes_late if s.pk in recorded else None,
                 "note": recorded[s.pk].note if s.pk in recorded else "",
             }

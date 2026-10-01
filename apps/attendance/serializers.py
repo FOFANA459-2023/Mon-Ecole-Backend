@@ -51,7 +51,9 @@ class RegisterStudentSerializer(serializers.Serializer):
     student = serializers.IntegerField()
     student_name = serializers.CharField()
     student_number = serializers.CharField()
-    status = serializers.ChoiceField(choices=Status.choices)
+    status = serializers.ChoiceField(
+        choices=Status.choices, allow_null=True, help_text="Null = not marked yet."
+    )
     minutes_late = serializers.IntegerField(allow_null=True)
     note = serializers.CharField()
 
@@ -166,7 +168,9 @@ class StaffRowSerializer(serializers.Serializer):
     position = serializers.CharField()
     staff_type = serializers.CharField()
     recorded = serializers.BooleanField()
-    status = serializers.ChoiceField(choices=StaffAttendance.StaffStatus.choices)
+    status = serializers.ChoiceField(
+        choices=StaffAttendance.StaffStatus.choices, allow_null=True, help_text="Null = not recorded yet."
+    )
     minutes_late = serializers.IntegerField(allow_null=True)
     note = serializers.CharField()
 

@@ -43,23 +43,30 @@ def take(client, class_group, day, records):
     )
 
 
+def marked(enrolled, **changes):
+    """A whole register: every student present, except the ones named (first name → status or entry)."""
+    rows = []
+    for first, enrollment in enrolled.items():
+        change = changes.get(first, "present")
+        entry = change if isinstance(change, dict) else {"status": change}
+        rows.append({"enrollment": enrollment.pk, **entry})
+    return rows
+
+
 class TestTakingTheRegister:
-    def test_everyone_starts_present_and_the_teacher_marks_the_others(self, setup, school, client_for):
+    def test_nobody_is_marked_in_advance_and_the_teacher_marks_everyone(self, setup, school, client_for):
         client = client_for(setup["barry"], school)
         sheet = client.get(REGISTER, {"class_group": setup["a"].pk}).data
         assert sheet["register"] is None and sheet["can_edit"] is True
         assert sheet["date"] == TODAY.isoformat()
-        assert {s["status"] for s in sheet["students"]} == {"present"}
+        assert {s["status"] for s in sheet["students"]} == {None}
 
         e = setup["e"]
         response = take(
             client,
             setup["a"],
             TODAY,
-            [
-                {"enrollment": e["Binta"].pk, "status": "absent"},
-                {"enrollment": e["Moussa"].pk, "status": "late", "minutes_late": 15, "note": "Bus"},
-            ],
+            marked(e, Binta="absent", Moussa={"status": "late", "minutes_late": 15, "note": "Bus"}),
         )
         assert response.status_code == 200, response.data
         statuses = {s["student_name"]: (s["status"], s["minutes_late"]) for s in response.data["students"]}
@@ -72,20 +79,28 @@ class TestTakingTheRegister:
         entry = AuditLog.objects.get(module="attendance", action="create")
         assert "1 absent, 1 late" in entry.summary
 
+    def test_a_register_cannot_be_saved_until_every_student_is_marked(self, setup, school, client_for):
+        client = client_for(setup["barry"], school)
+        e = setup["e"]
+        response = take(client, setup["a"], TODAY, [{"enrollment": e["Binta"].pk, "status": "absent"}])
+        assert response.status_code == 400
+        assert "2 still have no attendance" in str(response.data)
+        assert not ClassRegister.objects.exists()
+
     def test_minutes_only_count_for_late_students(self, setup, school, client_for):
         e = setup["e"]
         take(
             client_for(setup["barry"], school),
             setup["a"],
             TODAY,
-            [{"enrollment": e["Awa"].pk, "status": "absent", "minutes_late": 20}],
+            marked(e, Awa={"status": "absent", "minutes_late": 20}),
         )
         assert AttendanceRecord.objects.get(enrollment=e["Awa"]).minutes_late is None
 
     def test_corrections_on_the_day_are_audited(self, setup, school, client_for):
         client = client_for(setup["barry"], school)
         e = setup["e"]
-        take(client, setup["a"], TODAY, [{"enrollment": e["Binta"].pk, "status": "absent"}])
+        take(client, setup["a"], TODAY, marked(e, Binta="absent"))
         response = take(
             client, setup["a"], TODAY, [{"enrollment": e["Binta"].pk, "status": "excused", "note": "Ill"}]
         )
@@ -132,13 +147,13 @@ class TestWhoTakesWhich:
     def test_earlier_days_need_the_correction_right(self, setup, school, make_member, client_for):
         e = setup["e"]
         teacher = client_for(setup["barry"], school)
-        response = take(teacher, setup["a"], YESTERDAY, [{"enrollment": e["Awa"].pk, "status": "absent"}])
+        response = take(teacher, setup["a"], YESTERDAY, marked(e, Awa="absent"))
         assert response.status_code == 403
         assert (
             teacher.get(REGISTER, {"class_group": setup["a"].pk, "date": YESTERDAY}).data["can_edit"] is False
         )
         director = client_for(make_member(school, "director"), school)
-        response = take(director, setup["a"], YESTERDAY, [{"enrollment": e["Awa"].pk, "status": "absent"}])
+        response = take(director, setup["a"], YESTERDAY, marked(e, Awa="absent"))
         assert response.status_code == 200
 
     def test_admin_staff_see_registers_but_do_not_take_them(self, setup, school, make_member, client_for):
@@ -156,7 +171,7 @@ class TestOverviewAndReports:
         client = client_for(setup["barry"], school)
         rows = client.get("/api/v1/attendance/day/").data
         assert [(r["class_name"], r["register"], r["student_count"]) for r in rows] == [("7ème A", None, 3)]
-        take(client, setup["a"], TODAY, [{"enrollment": setup["e"]["Awa"].pk, "status": "absent"}])
+        take(client, setup["a"], TODAY, marked(setup["e"], Awa="absent"))
         row = client.get("/api/v1/attendance/day/").data[0]
         assert (row["present"], row["absent"], row["can_take"]) == (2, 1, True)
 
@@ -164,12 +179,7 @@ class TestOverviewAndReports:
         director = client_for(make_member(school, "director"), school)
         e = setup["e"]
         for day, status in [(date(2026, 10, 13), "absent"), (YESTERDAY, "absent"), (TODAY, "late")]:
-            take(
-                director,
-                setup["a"],
-                day,
-                [{"enrollment": e["Binta"].pk, "status": status, "minutes_late": 5}],
-            )
+            take(director, setup["a"], day, marked(e, Binta={"status": status, "minutes_late": 5}))
 
         month = director.get(
             "/api/v1/attendance/class-month/", {"class_group": setup["a"].pk, "month": "2026-10"}
