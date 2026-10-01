@@ -38,6 +38,8 @@ ANY_MEMBER = {
     ("get", "api/v1/terms/1/"),
     ("get", "api/v1/levels/"),
     ("get", "api/v1/levels/1/"),
+    ("get", "api/v1/grading-scales/"),
+    ("get", "api/v1/grading-scales/1/"),
     ("get", "api/v1/search/"),
     # Documents and imports check the owner's / kind's permission inside the view.
     ("get", "api/v1/documents/"),
