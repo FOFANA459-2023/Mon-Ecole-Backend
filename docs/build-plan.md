@@ -98,13 +98,13 @@ Mon-Ecole-Backend/
       core/            base models (TimeStamped, TenantScoped), tenancy middleware, permissions, pagination, exceptions, numbering sequences, jobs
       accounts/        User, Membership, Role, Permission, auth endpoints, password reset
       schools/         School, SchoolSettings, branding
-      academics/       AcademicYear, Term, Level, ClassGroup, Subject, ClassSubject, GradingSystem
+      academics/       AcademicYear, Term, Level, ClassGroup, Subject, ClassSubject
       people/          Student, Guardian, StudentGuardian, StaffMember
       enrollments/     Enrollment, transfers, promotion
       finance/         FeeCategory, FeeStructure, Invoice, InvoiceLine, Payment, PaymentAllocation, Receipt, Refund, Expense
       cashregister/    CashRegister, CashSession, CashTransaction
       attendance/      AttendanceSession, AttendanceRecord, StaffAttendance
-      assessments/     AssessmentType, Assessment, Grade, engine.py (calculation), results, ReportCard
+      assessments/     GradingScale, Gradebook, GradeCategory, Assessment, Grade, engine.py (calculation), results, ReportCard
       administration/  Department, Announcement, CalendarEvent
       documents/       Document (generic attachments), upload/download
       notifications/   Notification, preferences, email dispatch (EmailJS)
@@ -191,7 +191,6 @@ Common fields on every table: `id` (BigAutoField), `created_at`, `updated_at`, `
 - `AcademicYear(name "2026-2027", start, end, is_current, status open/closed)`; `Term(year, name, order, start, end, status)`
 - `Level(name, order, cycle)` e.g. 7ème, 10ème, Terminale; `ClassGroup(year, level, name, room, class_teacher→Staff, capacity, status)`
 - `Subject(code, name, level?, status)`; `ClassSubject(class, subject, teacher→Staff, coefficient, weekly_hours)` — coefficient lives here so it can differ by level/year
-- `GradingSystem(name, max_score e.g. 20, pass_mark e.g. 10, rounding decimals, rank_method dense|competition, mentions JSON e.g. Très bien ≥16)`; linked to school/level
 
 **people / enrollments**
 - `Student(student_number unique per school, first/last name, gender, dob, place_of_birth, nationality, address, phone, photo, status active/archived, notes)`
@@ -215,11 +214,13 @@ Common fields on every table: `id` (BigAutoField), `created_at`, `updated_at`, `
 **attendance**
 - `AttendanceSession(class, date, period/subject optional, taken_by, submitted_at, locked)`; `AttendanceRecord(session, enrollment, status present/absent/late/excused/unexcused, minutes_late, note)`; `StaffAttendance(staff, date, status, note)`
 
-**assessments / results**
-- `AssessmentType(name homework/quiz/test/midterm/final, default_weight)`
-- `Assessment(class_subject, term, type, title, date, max_score, weight, status draft/submitted/reviewed/published)`
-- `Grade(assessment, enrollment, score null=missing, absent flag, comment, entered_by, updated_by)`
-- `SubjectResult(enrollment, class_subject, term, average, weighted, rank, teacher_comment)` and `TermResult(enrollment, term, total_weighted, total_coefficients, average, rank, class_average, decision pass/fail, mention, principal_comment, published_at)` — snapshots written when results are published
+**assessments / results** — grading rules belong to the teacher (decided 2026-10-01: schools in Guinea and Liberia have no common rules; each teacher chooses how many quizzes, tests, homework and exams to give and what to call them)
+- `GradingScale(school, level null=school default, max_mark e.g. 20/10/100, pass_mark, decimals, rank_method competition|dense)` — how marks are *reported*; the only school-level rule
+- `Gradebook(class_subject, term, missing_policy exclude|zero, status open/submitted/published, submitted/published by+at, status_note)` — one per subject, class and term, created when a term's list is first read
+- `GradeCategory(gradebook, name — free text, weight, method average|total, order)` — the teacher's own groups ("Interrogations" ×1, "Composition" ×2, "Quizzes" 20 %…)
+- `Assessment(gradebook, category, name — free text, date, max_score — any number, weight within its category)` — as many as the teacher wants
+- `Grade(assessment, enrollment, score null=not marked, excused flag, comment, updated_by)`
+- Subject marks, class results and ranks are computed on read from the rules (never stored); published gradebooks are locked, so results stay stable. `SubjectResult`/`TermResult` snapshots arrive with report cards.
 - `ReportCard(enrollment, term, version, pdf, generated_at, published)`
 
 **administration / documents / notifications / audit / ai**
@@ -237,20 +238,20 @@ Numbering sequences (`core.Sequence(school, key, year, last_value)`, incremented
 
 **Enrolment flow:** create/find student → attach guardians → choose year/level/class (capacity check) → upload documents → `enrollments.services.enroll()` creates `Enrollment`, auto-generates the invoice from the class/level `FeeStructure`, optional initial payment → receipt PDF → print enrolment form. Re-enrolment/promotion: end-of-year wizard proposes next level per student (based on `TermResult.decision`), admin confirms in bulk. Transfer: close current enrolment (`transferred`, date, reason) and open a new one; historical grades stay attached to the old enrolment.
 
-**Finance (ledger-style):** payments are recorded against a student and **allocated** to open invoice lines (oldest due first by default, manually adjustable). Balances and statuses are always computed from invoices − allocations. Posted payments cannot be edited or deleted; corrections are **reversals** (negative mirror payment with reason, requires `finance.payment.reverse`) → audit logged. Overdue = due date passed and balance > 0 (nightly Celery job updates alerts). Cash payments automatically create a `CashTransaction` IN in the open cash session; recording cash without an open session is blocked.
+**Finance (ledger-style):** payments are recorded against a student and **allocated** to open invoice lines (oldest due first by default, manually adjustable). Balances and statuses are always computed from invoices − allocations. Posted payments cannot be edited or deleted; corrections are **reversals** (the payment is marked reversed with a reason, requires `finance.payment.reverse`) → audit logged. Overdue = due date passed and balance > 0 (nightly Celery job updates alerts). Cash payments automatically create a `CashTransaction` IN in the open cash session; recording cash without an open session is blocked.
 
 **Cash register:** open session with opening balance (defaults to previous closing) → IN/OUT transactions (payments, expenses, manual) → close with counted cash; system computes `expected = opening + Σin − Σout` and records the difference. Daily/weekly/monthly cash reports from transactions.
 
-**Grades workflow:** teacher creates assessment → enters scores (bulk grid, keyboard-friendly, autosave) → **submit** → head/director **review** → **publish** (results computed & snapshotted, visible on report cards). Published grades are locked; edits require `grades.reopen` with a reason → audit log (old → new values).
+**Grades workflow:** teacher sets up their categories (or starts from a template / copies another gradebook) → adds assessments → enters scores (bulk grid, keyboard-friendly, "E" = excused, explicit save) → **submit** → head/director **sends back** with a reason or **publishes** (counts in class results). Published grades are locked; edits require `grades.reopen` with a reason. Every batch of marks and every step is in the audit log (old → new values).
 
 **Calculation engine (`assessments/engine.py`, pure functions, fully unit-tested):**
-1. Subject term average = Σ(score/max × grading max × weight) / Σ(weight) over the term's assessments (missing-grade and absence rules per client answer — configurable: exclude, or count as 0).
-2. Weighted subject grade = subject average × `ClassSubject.coefficient` (ToR §15).
-3. Overall average = Σ weighted / Σ coefficients.
-4. Class average, min, max per subject and overall.
-5. Rank by overall average (dense or competition ranking per `GradingSystem`, ties share rank).
-6. Decision pass/fail vs `pass_mark`; mention bands; annual average from term averages (weights configurable).
-All rounding via `Decimal` with the school's rounding rule.
+1. Each assessment counts as score / max. Excused → left out. Missing → left out, or 0 when the teacher chose "count as zero" (only once the assessment has marks for someone).
+2. Category = weighted average of its assessments' fractions ("average") or points earned / points possible ("total").
+3. Subject = Σ(category × weight) / Σ(weight) over categories with something counted, × the scale's `max_mark`, rounded half-up.
+4. Overall average = Σ(subject mark × `ClassSubject.coefficient`) / Σ coefficients over subjects with a mark (ToR §15).
+5. Class average, min, max per subject and overall; rank by mark (competition or dense per `GradingScale`, ties share rank).
+6. Decision pass/fail vs `pass_mark`. Still to come with report cards: mention bands, annual average from term averages.
+All arithmetic in `Decimal`.
 
 **Attendance:** teacher opens "Today" for an assigned class on a phone → everyone defaults to Present → tap to mark Absent/Late (minutes)/Excused → submit. Editable same day; later edits need `attendance.edit` and are audited. Aggregates (daily, monthly, per student, per class, absence and late reports) from records; high-absenteeism alert rule (e.g. > N absences in 30 days) evaluated nightly.
 

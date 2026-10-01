@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     "apps.finance",
     "apps.cashregister",
     "apps.reports",
+    "apps.assessments",
 ]
 
 MIDDLEWARE = [
@@ -217,6 +218,10 @@ SPECTACULAR_SETTINGS = {
         "RefundStatusEnum": "apps.finance.models.Refund.Status",
         "CashDirectionEnum": "apps.cashregister.models.CashMovement.Direction",
         "CashSourceEnum": "apps.cashregister.models.CashMovement.Source",
+        "GradebookStatusEnum": "apps.assessments.models.Gradebook.Status",
+        "MissingPolicyEnum": "apps.assessments.models.Gradebook.MissingPolicy",
+        "GradeCategoryMethodEnum": "apps.assessments.models.GradeCategory.Method",
+        "RankMethodEnum": "apps.assessments.models.GradingScale.RankMethod",
     },
 }
 

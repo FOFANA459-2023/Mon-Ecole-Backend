@@ -171,6 +171,147 @@ paths:
               schema:
                 $ref: '#/components/schemas/AcademicYear'
           description: ''
+  /api/v1/assessments/:
+    get:
+      operationId: assessments_list
+      description: |-
+        Every quiz, homework, test or exam, with any name, marked out of any number. Deleting one deletes
+        its marks (this is written to the audit log).
+      parameters:
+      - in: query
+        name: gradebook
+        schema:
+          type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - assessments
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Assessment'
+          description: ''
+    post:
+      operationId: assessments_create
+      description: |-
+        Every quiz, homework, test or exam, with any name, marked out of any number. Deleting one deletes
+        its marks (this is written to the audit log).
+      tags:
+      - assessments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssessmentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AssessmentRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AssessmentRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Assessment'
+          description: ''
+  /api/v1/assessments/{id}/:
+    get:
+      operationId: assessments_retrieve
+      description: |-
+        Every quiz, homework, test or exam, with any name, marked out of any number. Deleting one deletes
+        its marks (this is written to the audit log).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this assessment.
+        required: true
+      tags:
+      - assessments
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Assessment'
+          description: ''
+    patch:
+      operationId: assessments_partial_update
+      description: |-
+        Every quiz, homework, test or exam, with any name, marked out of any number. Deleting one deletes
+        its marks (this is written to the audit log).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this assessment.
+        required: true
+      tags:
+      - assessments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedAssessmentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedAssessmentRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedAssessmentRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Assessment'
+          description: ''
+    delete:
+      operationId: assessments_destroy
+      description: |-
+        Every quiz, homework, test or exam, with any name, marked out of any number. Deleting one deletes
+        its marks (this is written to the audit log).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this assessment.
+        required: true
+      tags:
+      - assessments
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/audit-logs/:
     get:
       operationId: audit_logs_list
@@ -764,6 +905,35 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CashMovement'
+          description: ''
+  /api/v1/class-results/:
+    get:
+      operationId: class_results_retrieve
+      description: |-
+        A class's results for a term: each subject's mark, the coefficient-weighted average and the rank.
+
+        For users who see every class, and for the class teacher.
+      parameters:
+      - in: query
+        name: class_group
+        schema:
+          type: integer
+        required: true
+      - in: query
+        name: term
+        schema:
+          type: integer
+        required: true
+      tags:
+      - class-results
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClassResults'
           description: ''
   /api/v1/class-subjects/:
     get:
@@ -2185,6 +2355,634 @@ paths:
         required: true
       tags:
       - fee-schedules
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/grade-categories/:
+    get:
+      operationId: grade_categories_list
+      description: The teacher's own kinds of assessment ("Interrogations", "Quiz",
+        "Exam"...) and their weight.
+      parameters:
+      - in: query
+        name: gradebook
+        schema:
+          type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - grade-categories
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GradeCategory'
+          description: ''
+    post:
+      operationId: grade_categories_create
+      description: The teacher's own kinds of assessment ("Interrogations", "Quiz",
+        "Exam"...) and their weight.
+      tags:
+      - grade-categories
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GradeCategoryRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/GradeCategoryRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/GradeCategoryRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GradeCategory'
+          description: ''
+  /api/v1/grade-categories/{id}/:
+    get:
+      operationId: grade_categories_retrieve
+      description: The teacher's own kinds of assessment ("Interrogations", "Quiz",
+        "Exam"...) and their weight.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this grade category.
+        required: true
+      tags:
+      - grade-categories
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GradeCategory'
+          description: ''
+    patch:
+      operationId: grade_categories_partial_update
+      description: The teacher's own kinds of assessment ("Interrogations", "Quiz",
+        "Exam"...) and their weight.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this grade category.
+        required: true
+      tags:
+      - grade-categories
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedGradeCategoryRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedGradeCategoryRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedGradeCategoryRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GradeCategory'
+          description: ''
+    delete:
+      operationId: grade_categories_destroy
+      description: The teacher's own kinds of assessment ("Interrogations", "Quiz",
+        "Exam"...) and their weight.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this grade category.
+        required: true
+      tags:
+      - grade-categories
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/gradebooks/:
+    get:
+      operationId: gradebooks_list
+      description: |-
+        One gradebook per subject, class and term, holding the teacher's own rules, assessments and marks.
+
+        Gradebooks are never created or deleted by hand: listing a term creates the missing gradebooks of every
+        subject taught that year.
+      parameters:
+      - in: query
+        name: class_subject__class_group
+        schema:
+          type: integer
+      - in: query
+        name: class_subject__subject
+        schema:
+          type: integer
+      - in: query
+        name: class_subject__teacher
+        schema:
+          type: integer
+      - in: query
+        name: mine
+        schema:
+          type: boolean
+        description: Only the subjects I teach.
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - open
+          - published
+          - submitted
+        description: |-
+          * `open` - In progress
+          * `submitted` - Submitted
+          * `published` - Published
+      - in: query
+        name: term
+        schema:
+          type: integer
+        required: true
+      tags:
+      - gradebooks
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedGradebookList'
+          description: ''
+  /api/v1/gradebooks/{id}/:
+    get:
+      operationId: gradebooks_retrieve
+      description: |-
+        One gradebook per subject, class and term, holding the teacher's own rules, assessments and marks.
+
+        Gradebooks are never created or deleted by hand: listing a term creates the missing gradebooks of every
+        subject taught that year.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this gradebook.
+        required: true
+      tags:
+      - gradebooks
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GradebookDetail'
+          description: ''
+    patch:
+      operationId: gradebooks_partial_update
+      description: |-
+        One gradebook per subject, class and term, holding the teacher's own rules, assessments and marks.
+
+        Gradebooks are never created or deleted by hand: listing a term creates the missing gradebooks of every
+        subject taught that year.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this gradebook.
+        required: true
+      tags:
+      - gradebooks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedGradebookUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedGradebookUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedGradebookUpdateRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GradebookDetail'
+          description: ''
+  /api/v1/gradebooks/{id}/copy-setup/:
+    post:
+      operationId: gradebooks_copy_setup_create
+      description: Reuse the categories (and optionally the assessments, without marks)
+        of another gradebook.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this gradebook.
+        required: true
+      tags:
+      - gradebooks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CopySetupRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CopySetupRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CopySetupRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GradebookDetail'
+          description: ''
+  /api/v1/gradebooks/{id}/grades/:
+    post:
+      operationId: gradebooks_grades_create
+      description: Save a batch of marks. Leave score empty to clear a mark; `excused`
+        leaves the student out.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this gradebook.
+        required: true
+      tags:
+      - gradebooks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveGradesRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SaveGradesRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SaveGradesRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaveGradesResult'
+          description: ''
+  /api/v1/gradebooks/{id}/publish/:
+    post:
+      operationId: gradebooks_publish_create
+      description: |-
+        One gradebook per subject, class and term, holding the teacher's own rules, assessments and marks.
+
+        Gradebooks are never created or deleted by hand: listing a term creates the missing gradebooks of every
+        subject taught that year.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this gradebook.
+        required: true
+      tags:
+      - gradebooks
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GradebookDetail'
+          description: ''
+  /api/v1/gradebooks/{id}/reopen/:
+    post:
+      operationId: gradebooks_reopen_create
+      description: |-
+        One gradebook per subject, class and term, holding the teacher's own rules, assessments and marks.
+
+        Gradebooks are never created or deleted by hand: listing a term creates the missing gradebooks of every
+        subject taught that year.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this gradebook.
+        required: true
+      tags:
+      - gradebooks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GradebookReasonRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/GradebookReasonRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/GradebookReasonRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GradebookDetail'
+          description: ''
+  /api/v1/gradebooks/{id}/send-back/:
+    post:
+      operationId: gradebooks_send_back_create
+      description: |-
+        One gradebook per subject, class and term, holding the teacher's own rules, assessments and marks.
+
+        Gradebooks are never created or deleted by hand: listing a term creates the missing gradebooks of every
+        subject taught that year.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this gradebook.
+        required: true
+      tags:
+      - gradebooks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GradebookReasonRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/GradebookReasonRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/GradebookReasonRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GradebookDetail'
+          description: ''
+  /api/v1/gradebooks/{id}/sheet/:
+    get:
+      operationId: gradebooks_sheet_retrieve
+      description: 'The marks grid: every student''s marks, category and subject marks,
+        ranks and class statistics.'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this gradebook.
+        required: true
+      tags:
+      - gradebooks
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GradebookSheet'
+          description: ''
+  /api/v1/gradebooks/{id}/submit/:
+    post:
+      operationId: gradebooks_submit_create
+      description: |-
+        One gradebook per subject, class and term, holding the teacher's own rules, assessments and marks.
+
+        Gradebooks are never created or deleted by hand: listing a term creates the missing gradebooks of every
+        subject taught that year.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this gradebook.
+        required: true
+      tags:
+      - gradebooks
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GradebookDetail'
+          description: ''
+  /api/v1/grading-scales/:
+    get:
+      operationId: grading_scales_list
+      description: How the school reports marks (out of 20, 10, 100...), with optional
+        differences for some levels.
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - grading-scales
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GradingScale'
+          description: ''
+    post:
+      operationId: grading_scales_create
+      description: How the school reports marks (out of 20, 10, 100...), with optional
+        differences for some levels.
+      tags:
+      - grading-scales
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GradingScaleRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/GradingScaleRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/GradingScaleRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GradingScale'
+          description: ''
+  /api/v1/grading-scales/{id}/:
+    get:
+      operationId: grading_scales_retrieve
+      description: How the school reports marks (out of 20, 10, 100...), with optional
+        differences for some levels.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this grading scale.
+        required: true
+      tags:
+      - grading-scales
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GradingScale'
+          description: ''
+    patch:
+      operationId: grading_scales_partial_update
+      description: How the school reports marks (out of 20, 10, 100...), with optional
+        differences for some levels.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this grading scale.
+        required: true
+      tags:
+      - grading-scales
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedGradingScaleRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedGradingScaleRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedGradingScaleRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GradingScale'
+          description: ''
+    delete:
+      operationId: grading_scales_destroy
+      description: How the school reports marks (out of 20, 10, 100...), with optional
+        differences for some levels.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this grading scale.
+        required: true
+      tags:
+      - grading-scales
       security:
       - jwtAuth: []
       responses:
@@ -5202,6 +6000,65 @@ components:
       description: |-
         * `active` - Active
         * `archived` - Archived
+    Assessment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        gradebook:
+          type: integer
+        category:
+          type: integer
+        name:
+          type: string
+          maxLength: 100
+        date:
+          type: string
+          format: date
+          nullable: true
+        max_score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,5}(?:\.\d{0,2})?$
+        weight:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,2})?$
+          description: How much it counts inside its category (average method only).
+      required:
+      - category
+      - gradebook
+      - id
+      - name
+    AssessmentRequest:
+      type: object
+      properties:
+        gradebook:
+          type: integer
+        category:
+          type: integer
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        date:
+          type: string
+          format: date
+          nullable: true
+        max_score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,5}(?:\.\d{0,2})?$
+        weight:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,2})?$
+          description: How much it counts inside its category (average method only).
+      required:
+      - category
+      - gradebook
+      - name
     AssignmentSubject:
       type: object
       properties:
@@ -5771,6 +6628,26 @@ components:
       - academic_year
       - level
       - name
+    ClassResults:
+      type: object
+      properties:
+        scale:
+          $ref: '#/components/schemas/ScaleBrief'
+        subjects:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResultSubject'
+        students:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResultStudent'
+        stats:
+          $ref: '#/components/schemas/Stats'
+      required:
+      - scale
+      - stats
+      - students
+      - subjects
     ClassSubject:
       type: object
       properties:
@@ -5848,6 +6725,16 @@ components:
           maxLength: 255
       required:
       - counted_closing
+    CopySetupRequest:
+      type: object
+      properties:
+        source:
+          type: integer
+        with_assessments:
+          type: boolean
+          default: false
+      required:
+      - source
     CycleEnum:
       enum:
       - preschool
@@ -6448,6 +7335,402 @@ components:
       - created
       - skipped
       - without_fees
+    GradeCategory:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        gradebook:
+          type: integer
+        name:
+          type: string
+          maxLength: 60
+        weight:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,2})?$
+        method:
+          $ref: '#/components/schemas/GradeCategoryMethodEnum'
+        order:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+      required:
+      - gradebook
+      - id
+      - name
+    GradeCategoryMethodEnum:
+      enum:
+      - average
+      - total
+      type: string
+      description: |-
+        * `average` - Average of the assessments
+        * `total` - Total of the points
+    GradeCategoryRequest:
+      type: object
+      properties:
+        gradebook:
+          type: integer
+        name:
+          type: string
+          minLength: 1
+          maxLength: 60
+        weight:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,2})?$
+        method:
+          $ref: '#/components/schemas/GradeCategoryMethodEnum'
+        order:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+      required:
+      - gradebook
+      - name
+    GradeEntryRequest:
+      type: object
+      properties:
+        assessment:
+          type: integer
+        enrollment:
+          type: integer
+        score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,5}(?:\.\d{0,2})?$
+          nullable: true
+        excused:
+          type: boolean
+          default: false
+        comment:
+          type: string
+          default: ''
+          maxLength: 255
+      required:
+      - assessment
+      - enrollment
+      - score
+    Gradebook:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        class_subject:
+          type: integer
+          readOnly: true
+        class_group:
+          type: integer
+          readOnly: true
+        class_name:
+          type: string
+          readOnly: true
+        level:
+          type: integer
+          readOnly: true
+        subject:
+          type: integer
+          readOnly: true
+        subject_name:
+          type: string
+          readOnly: true
+        subject_code:
+          type: string
+          readOnly: true
+        coefficient:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
+          readOnly: true
+        teacher_name:
+          type: string
+          readOnly: true
+        term:
+          type: integer
+          readOnly: true
+        term_name:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/GradebookStatusEnum'
+          readOnly: true
+        missing_policy:
+          allOf:
+          - $ref: '#/components/schemas/MissingPolicyEnum'
+          readOnly: true
+        student_count:
+          type: integer
+          readOnly: true
+        assessment_count:
+          type: integer
+          readOnly: true
+        mark_count:
+          type: integer
+          readOnly: true
+        is_mine:
+          type: boolean
+          readOnly: true
+      required:
+      - assessment_count
+      - class_group
+      - class_name
+      - class_subject
+      - coefficient
+      - id
+      - is_mine
+      - level
+      - mark_count
+      - missing_policy
+      - status
+      - student_count
+      - subject
+      - subject_code
+      - subject_name
+      - teacher_name
+      - term
+      - term_name
+    GradebookDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        class_subject:
+          type: integer
+          readOnly: true
+        class_group:
+          type: integer
+          readOnly: true
+        class_name:
+          type: string
+          readOnly: true
+        level:
+          type: integer
+          readOnly: true
+        subject:
+          type: integer
+          readOnly: true
+        subject_name:
+          type: string
+          readOnly: true
+        subject_code:
+          type: string
+          readOnly: true
+        coefficient:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
+          readOnly: true
+        teacher_name:
+          type: string
+          readOnly: true
+        term:
+          type: integer
+          readOnly: true
+        term_name:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/GradebookStatusEnum'
+          readOnly: true
+        missing_policy:
+          allOf:
+          - $ref: '#/components/schemas/MissingPolicyEnum'
+          readOnly: true
+        student_count:
+          type: integer
+          readOnly: true
+        assessment_count:
+          type: integer
+          readOnly: true
+        mark_count:
+          type: integer
+          readOnly: true
+        is_mine:
+          type: boolean
+          readOnly: true
+        status_note:
+          type: string
+          readOnly: true
+          description: Why the marks were sent back or reopened (latest).
+        submitted_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        submitted_by_name:
+          type: string
+          readOnly: true
+        published_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        published_by_name:
+          type: string
+          readOnly: true
+        scale:
+          allOf:
+          - $ref: '#/components/schemas/ScaleBrief'
+          readOnly: true
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/GradeCategory'
+          readOnly: true
+        assessments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Assessment'
+          readOnly: true
+        can:
+          allOf:
+          - $ref: '#/components/schemas/GradebookPermissions'
+          readOnly: true
+      required:
+      - assessment_count
+      - assessments
+      - can
+      - categories
+      - class_group
+      - class_name
+      - class_subject
+      - coefficient
+      - id
+      - is_mine
+      - level
+      - mark_count
+      - missing_policy
+      - published_at
+      - published_by_name
+      - scale
+      - status
+      - status_note
+      - student_count
+      - subject
+      - subject_code
+      - subject_name
+      - submitted_at
+      - submitted_by_name
+      - teacher_name
+      - term
+      - term_name
+    GradebookPermissions:
+      type: object
+      properties:
+        edit:
+          type: boolean
+        submit:
+          type: boolean
+        send_back:
+          type: boolean
+        publish:
+          type: boolean
+        reopen:
+          type: boolean
+      required:
+      - edit
+      - publish
+      - reopen
+      - send_back
+      - submit
+    GradebookReasonRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 255
+      required:
+      - reason
+    GradebookSheet:
+      type: object
+      properties:
+        scale:
+          $ref: '#/components/schemas/ScaleBrief'
+        students:
+          type: array
+          items:
+            $ref: '#/components/schemas/SheetStudent'
+        assessments:
+          type: array
+          items:
+            $ref: '#/components/schemas/SheetAssessment'
+        stats:
+          $ref: '#/components/schemas/Stats'
+      required:
+      - assessments
+      - scale
+      - stats
+      - students
+    GradebookStatusEnum:
+      enum:
+      - open
+      - submitted
+      - published
+      type: string
+      description: |-
+        * `open` - In progress
+        * `submitted` - Submitted
+        * `published` - Published
+    GradingScale:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        level:
+          type: integer
+          nullable: true
+        level_name:
+          type: string
+          readOnly: true
+        max_mark:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          description: Marks are reported out of this number, e.g. 20, 10 or 100.
+        pass_mark:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        decimals:
+          type: integer
+          maximum: 3
+          minimum: 0
+        rank_method:
+          $ref: '#/components/schemas/RankMethodEnum'
+      required:
+      - id
+      - level_name
+    GradingScaleRequest:
+      type: object
+      properties:
+        level:
+          type: integer
+          nullable: true
+        max_mark:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          description: Marks are reported out of this number, e.g. 20, 10 or 100.
+        pass_mark:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        decimals:
+          type: integer
+          maximum: 3
+          minimum: 0
+        rank_method:
+          $ref: '#/components/schemas/RankMethodEnum'
     GrantAccessRequest:
       type: object
       properties:
@@ -7270,6 +8553,14 @@ components:
       - id
       - invitation_expires_at
       - username
+    MissingPolicyEnum:
+      enum:
+      - exclude
+      - zero
+      type: string
+      description: |-
+        * `exclude` - Leave missing marks out of the average
+        * `zero` - Count missing marks as zero
     NewDirectorRequest:
       type: object
       properties:
@@ -7564,6 +8855,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Expense'
+    PaginatedGradebookList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Gradebook'
     PaginatedGuardianLinkList:
       type: object
       required:
@@ -7863,6 +9177,30 @@ components:
           maximum: 6
           minimum: 0
           writeOnly: true
+    PatchedAssessmentRequest:
+      type: object
+      properties:
+        gradebook:
+          type: integer
+        category:
+          type: integer
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        date:
+          type: string
+          format: date
+          nullable: true
+        max_score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,5}(?:\.\d{0,2})?$
+        weight:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,2})?$
+          description: How much it counts inside its category (average method only).
     PatchedCashRegisterRequest:
       type: object
       properties:
@@ -7969,6 +9307,52 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/InstallmentRequest'
+    PatchedGradeCategoryRequest:
+      type: object
+      properties:
+        gradebook:
+          type: integer
+        name:
+          type: string
+          minLength: 1
+          maxLength: 60
+        weight:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,2})?$
+        method:
+          $ref: '#/components/schemas/GradeCategoryMethodEnum'
+        order:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+    PatchedGradebookUpdateRequest:
+      type: object
+      properties:
+        missing_policy:
+          $ref: '#/components/schemas/MissingPolicyEnum'
+    PatchedGradingScaleRequest:
+      type: object
+      properties:
+        level:
+          type: integer
+          nullable: true
+        max_mark:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          description: Marks are reported out of this number, e.g. 20, 10 or 100.
+        pass_mark:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        decimals:
+          type: integer
+          maximum: 3
+          minimum: 0
+        rank_method:
+          $ref: '#/components/schemas/RankMethodEnum'
     PatchedGuardianLinkUpdateRequest:
       type: object
       properties:
@@ -8698,6 +10082,14 @@ components:
       required:
       - promoted
       - skipped
+    RankMethodEnum:
+      enum:
+      - competition
+      - dense
+      type: string
+      description: |-
+        * `competition` - Ties share a rank and the next rank is skipped (1, 1, 3)
+        * `dense` - Ties share a rank and no rank is skipped (1, 1, 2)
     ReasonRequest:
       type: object
       properties:
@@ -8999,6 +10391,85 @@ components:
         * `mother` - Mother
         * `guardian` - Guardian
         * `other` - Other
+    ResultMark:
+      type: object
+      properties:
+        class_subject:
+          type: integer
+        mark:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,3})?$
+          nullable: true
+      required:
+      - class_subject
+      - mark
+    ResultStudent:
+      type: object
+      properties:
+        enrollment:
+          type: integer
+        student:
+          type: integer
+        student_name:
+          type: string
+        student_number:
+          type: string
+        marks:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResultMark'
+        average:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,3})?$
+          nullable: true
+        rank:
+          type: integer
+          nullable: true
+        passed:
+          type: boolean
+          nullable: true
+      required:
+      - average
+      - enrollment
+      - marks
+      - passed
+      - rank
+      - student
+      - student_name
+      - student_number
+    ResultSubject:
+      type: object
+      properties:
+        class_subject:
+          type: integer
+        subject_name:
+          type: string
+        subject_code:
+          type: string
+        coefficient:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
+        teacher_name:
+          type: string
+        gradebook:
+          type: integer
+          nullable: true
+        status:
+          $ref: '#/components/schemas/GradebookStatusEnum'
+        stats:
+          $ref: '#/components/schemas/Stats'
+      required:
+      - class_subject
+      - coefficient
+      - gradebook
+      - stats
+      - status
+      - subject_code
+      - subject_name
+      - teacher_name
     ReversePaymentRequest:
       type: object
       properties:
@@ -9078,6 +10549,40 @@ components:
             minLength: 1
       required:
       - name
+    SaveGradesRequest:
+      type: object
+      properties:
+        grades:
+          type: array
+          items:
+            $ref: '#/components/schemas/GradeEntryRequest'
+      required:
+      - grades
+    SaveGradesResult:
+      type: object
+      properties:
+        changed:
+          type: integer
+      required:
+      - changed
+    ScaleBrief:
+      type: object
+      properties:
+        max_mark:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          description: Marks are reported out of this number, e.g. 20, 10 or 100.
+        pass_mark:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        decimals:
+          type: integer
+          maximum: 3
+          minimum: 0
+        rank_method:
+          $ref: '#/components/schemas/RankMethodEnum'
     School:
       type: object
       properties:
@@ -9203,6 +10708,100 @@ components:
           $ref: '#/components/schemas/SchoolStatusEnum'
       required:
       - status
+    SheetAssessment:
+      type: object
+      properties:
+        assessment:
+          type: integer
+        marked:
+          type: integer
+        average:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,3})?$
+          nullable: true
+      required:
+      - assessment
+      - average
+      - marked
+    SheetCategoryMark:
+      type: object
+      properties:
+        category:
+          type: integer
+        mark:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,3})?$
+          nullable: true
+      required:
+      - category
+      - mark
+    SheetMark:
+      type: object
+      properties:
+        assessment:
+          type: integer
+        score:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,5}(?:\.\d{0,2})?$
+          nullable: true
+        excused:
+          type: boolean
+        comment:
+          type: string
+      required:
+      - assessment
+      - comment
+      - excused
+      - score
+    SheetStudent:
+      type: object
+      properties:
+        enrollment:
+          type: integer
+        student:
+          type: integer
+        student_name:
+          type: string
+        student_number:
+          type: string
+        is_active:
+          type: boolean
+        marks:
+          type: array
+          items:
+            $ref: '#/components/schemas/SheetMark'
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/SheetCategoryMark'
+        mark:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,3})?$
+          nullable: true
+        rank:
+          type: integer
+          nullable: true
+        passed:
+          type: boolean
+          nullable: true
+        missing:
+          type: integer
+      required:
+      - categories
+      - enrollment
+      - is_active
+      - mark
+      - marks
+      - missing
+      - passed
+      - rank
+      - student
+      - student_name
+      - student_number
     SourceTotal:
       type: object
       properties:
@@ -9382,6 +10981,34 @@ components:
         * `teacher` - Teacher
         * `administrative` - Administrative
         * `support` - Support
+    Stats:
+      type: object
+      properties:
+        average:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,3})?$
+          nullable: true
+        lowest:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,3})?$
+          nullable: true
+        highest:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,3})?$
+          nullable: true
+        passed:
+          type: integer
+        counted:
+          type: integer
+      required:
+      - average
+      - counted
+      - highest
+      - lowest
+      - passed
     Student:
       type: object
       properties:
