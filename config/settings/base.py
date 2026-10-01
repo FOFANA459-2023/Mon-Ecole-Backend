@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "apps.cashregister",
     "apps.reports",
     "apps.assessments",
+    "apps.attendance",
 ]
 
 MIDDLEWARE = [
@@ -222,6 +223,8 @@ SPECTACULAR_SETTINGS = {
         "MissingPolicyEnum": "apps.assessments.models.Gradebook.MissingPolicy",
         "GradeCategoryMethodEnum": "apps.assessments.models.GradeCategory.Method",
         "RankMethodEnum": "apps.assessments.models.GradingScale.RankMethod",
+        "AttendanceStatusEnum": "apps.attendance.models.Status",
+        "StaffAttendanceStatusEnum": "apps.attendance.models.StaffAttendance.StaffStatus",
     },
 }
 

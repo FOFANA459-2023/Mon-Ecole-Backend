@@ -17,7 +17,7 @@ This repository is the **Django REST API** (plus Celery worker and beat). The we
 | 1 | Foundation: auth, multi-school tenancy, roles & permissions, audit log, school settings, users | Built |
 | 2 | Core school management: students, guardians, enrolment, classes, subjects, staff, documents, import, search | Built |
 | 3 | Finance & cash register: fees, invoices, payments, receipts, expenses, refunds, cash sessions, finance reports | Built |
-| 4 | Academics: teacher-defined grading rules, assessments, marks, review/publish, class results and ranks | In progress (attendance and report cards next) |
+| 4 | Academics: teacher-defined grading rules, assessments, marks, review/publish, class results and ranks; daily class registers, staff attendance, attendance reports | In progress (report cards next) |
 | 5–7 | Reports & notifications, AI, hardening & go-live | Planned |
 
 Hosting today: a free-tier production server on AWS (one EC2 instance, [infra/aws](infra/aws/README.md)) with Supabase Free. The planned ECS Fargate setup comes before go-live; the deploy workflow supports both.
@@ -45,6 +45,7 @@ apps/finance/       fees, discounts, invoices, payments, receipts, expenses, ref
 apps/cashregister/  cash registers and sessions
 apps/reports/       finance reports (JSON, PDF, Excel, CSV)
 apps/assessments/   grading scales, teachers' gradebooks, categories, assessments, marks, calculation engine, results
+apps/attendance/    daily class registers, staff attendance, month grid, absences, student summary
 infra/aws/          Terraform for the free-tier production server (EC2, S3, ECR, GitHub deploy role)
 deploy/ec2/         Docker Compose stack and deploy script run on that server
 openapi.yaml        generated API schema (the web app generates its TypeScript types from it)
