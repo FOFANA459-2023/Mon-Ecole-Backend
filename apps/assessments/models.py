@@ -48,6 +48,11 @@ class GradingScale(TenantScopedModel):
     pass_mark = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("10"))
     decimals = models.PositiveSmallIntegerField(default=2, validators=[MaxValueValidator(3)])
     rank_method = models.CharField(max_length=12, choices=RankMethod.choices, default=RankMethod.COMPETITION)
+    mentions = models.JSONField(
+        default=list,
+        blank=True,
+        help_text='Honours bands, e.g. [{"min": 16, "label": "Très bien"}, {"min": 14, "label": "Bien"}].',
+    )
 
     class Meta:
         ordering = ["level__order", "id"]
@@ -205,3 +210,34 @@ class Grade(TenantScopedModel):
 
     def __str__(self):
         return f"{self.enrollment_id}: {self.score}"
+
+
+class ReportComment(TenantScopedModel):
+    """The general comment on a student's report card for a term, or for the whole year (no term)."""
+
+    enrollment = models.ForeignKey(
+        "enrollments.Enrollment", on_delete=models.CASCADE, related_name="report_comments"
+    )
+    term = models.ForeignKey(
+        "academics.Term", null=True, blank=True, on_delete=models.CASCADE, related_name="report_comments"
+    )
+    comment = models.TextField(max_length=600)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+
+    class Meta:
+        verbose_name = "report card comment"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["enrollment", "term"],
+                condition=Q(term__isnull=False),
+                name="uniq_report_comment_term",
+            ),
+            models.UniqueConstraint(
+                fields=["enrollment"], condition=Q(term__isnull=True), name="uniq_report_comment_year"
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.enrollment_id} — {self.term_id or 'year'}"

@@ -229,3 +229,21 @@ class TestStaffAttendance:
 
     def test_teachers_cannot_see_staff_attendance(self, setup, school, client_for):
         assert client_for(setup["barry"], school).get(self.URL).status_code == 403
+
+
+def test_the_dashboard_counts_today_s_registers(setup, school, client_for, monkeypatch):
+    from apps.attendance import services as attendance_services
+
+    monkeypatch.setattr(attendance_services, "school_today", lambda school: TODAY)
+    client = client_for(setup["barry"], school)
+    take(client, setup["a"], TODAY, marked(setup["e"], Awa="absent", Binta="late"))
+    today = client.get("/api/v1/dashboard/summary/").data["attendance_today"]
+    assert today == {
+        "date": TODAY.isoformat(),
+        "registers_taken": 1,
+        "classes": 1,
+        "present": 1,
+        "absent": 1,
+        "late": 1,
+        "excused": 0,
+    }

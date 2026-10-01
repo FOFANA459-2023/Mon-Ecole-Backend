@@ -4356,6 +4356,105 @@ paths:
               schema:
                 $ref: '#/components/schemas/Refund'
           description: ''
+  /api/v1/report-cards/:
+    get:
+      operationId: report_cards_retrieve
+      description: |-
+        Report cards as one PDF: a whole class (one page per student) or one student; a term, or the year
+        when `term` is left out. Only published marks count.
+      parameters:
+      - in: query
+        name: class_group
+        schema:
+          type: integer
+        required: true
+      - in: query
+        name: enrollment
+        schema:
+          type: integer
+        description: Only this student's card.
+      - in: query
+        name: term
+        schema:
+          type: integer
+          nullable: true
+        description: Leave out for the year.
+      tags:
+      - report-cards
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/report-comments/:
+    get:
+      operationId: report_comments_list
+      description: The general comment on each student's report card, for a term or
+        (no term) the year.
+      parameters:
+      - in: query
+        name: class_group
+        schema:
+          type: integer
+        required: true
+      - in: query
+        name: enrollment
+        schema:
+          type: integer
+        description: Only this student's card.
+      - in: query
+        name: term
+        schema:
+          type: integer
+          nullable: true
+        description: Leave out for the year.
+      tags:
+      - report-comments
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReportCommentRow'
+          description: ''
+    post:
+      operationId: report_comments_create
+      description: The general comment on each student's report card, for a term or
+        (no term) the year.
+      tags:
+      - report-comments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveReportCommentsRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SaveReportCommentsRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SaveReportCommentsRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReportCommentRow'
+          description: ''
   /api/v1/reports/finance/{key}/:
     get:
       operationId: reports_finance_retrieve
@@ -5183,6 +5282,28 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/student-results/{id}/:
+    get:
+      operationId: student_results_retrieve
+      description: 'A student''s results this school year: each term''s average, rank
+        and honours band, and the year''s.'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - student-results
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentResults'
+          description: ''
   /api/v1/students/:
     get:
       operationId: students_list
@@ -7022,6 +7143,17 @@ components:
           maxLength: 255
       required:
       - counted_closing
+    CommentEntryRequest:
+      type: object
+      properties:
+        enrollment:
+          type: integer
+        comment:
+          type: string
+          maxLength: 600
+      required:
+      - comment
+      - enrollment
     CopySetupRequest:
       type: object
       properties:
@@ -8058,6 +8190,13 @@ components:
           minimum: 0
         rank_method:
           $ref: '#/components/schemas/RankMethodEnum'
+        mentions:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+          description: '[{min, label}], any order.'
+          maxItems: 10
       required:
       - id
       - level_name
@@ -8082,6 +8221,13 @@ components:
           minimum: 0
         rank_method:
           $ref: '#/components/schemas/RankMethodEnum'
+        mentions:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+          description: '[{min, label}], any order.'
+          maxItems: 10
     GrantAccessRequest:
       type: object
       properties:
@@ -8904,6 +9050,19 @@ components:
       - id
       - invitation_expires_at
       - username
+    Mention:
+      type: object
+      properties:
+        min:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        label:
+          type: string
+          maxLength: 40
+      required:
+      - label
+      - min
     MissingPolicyEnum:
       enum:
       - exclude
@@ -9737,6 +9896,13 @@ components:
           minimum: 0
         rank_method:
           $ref: '#/components/schemas/RankMethodEnum'
+        mentions:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+          description: '[{min, label}], any order.'
+          maxItems: 10
     PatchedGuardianLinkUpdateRequest:
       type: object
       properties:
@@ -10875,6 +11041,22 @@ components:
         * `mother` - Mother
         * `guardian` - Guardian
         * `other` - Other
+    ReportCommentRow:
+      type: object
+      properties:
+        enrollment:
+          type: integer
+        student:
+          type: integer
+        student_name:
+          type: string
+        comment:
+          type: string
+      required:
+      - comment
+      - enrollment
+      - student
+      - student_name
     ResultMark:
       type: object
       properties:
@@ -10885,9 +11067,13 @@ components:
           format: decimal
           pattern: ^-?\d{0,4}(?:\.\d{0,3})?$
           nullable: true
+        rank:
+          type: integer
+          nullable: true
       required:
       - class_subject
       - mark
+      - rank
     ResultStudent:
       type: object
       properties:
@@ -11065,6 +11251,25 @@ components:
       - class_group
       - date
       - records
+    SaveReportCommentsRequest:
+      type: object
+      properties:
+        class_group:
+          type: integer
+        term:
+          type: integer
+          nullable: true
+          description: Leave out for the year.
+        enrollment:
+          type: integer
+          description: Only this student's card.
+        comments:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommentEntryRequest'
+      required:
+      - class_group
+      - comments
     SaveStaffAttendanceRequest:
       type: object
       properties:
@@ -11096,6 +11301,13 @@ components:
           minimum: 0
         rank_method:
           $ref: '#/components/schemas/RankMethodEnum'
+        mentions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Mention'
+          readOnly: true
+      required:
+      - mentions
     School:
       type: object
       properties:
@@ -11973,6 +12185,67 @@ components:
       required:
       - first_name
       - last_name
+    StudentResults:
+      type: object
+      properties:
+        enrollment:
+          type: integer
+          nullable: true
+        class_group:
+          type: integer
+          nullable: true
+        class_name:
+          type: string
+        scale:
+          allOf:
+          - $ref: '#/components/schemas/ScaleBrief'
+          nullable: true
+        terms:
+          type: array
+          items:
+            $ref: '#/components/schemas/StudentTermResult'
+      required:
+      - class_group
+      - class_name
+      - enrollment
+      - scale
+      - terms
+    StudentTermResult:
+      type: object
+      properties:
+        term:
+          type: integer
+          nullable: true
+          description: Null = the whole year.
+        term_name:
+          type: string
+        average:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,3})?$
+          nullable: true
+        rank:
+          type: integer
+          nullable: true
+        ranked:
+          type: integer
+        mention:
+          type: string
+        passed:
+          type: boolean
+          nullable: true
+        subjects:
+          type: integer
+          description: Published subjects counted.
+      required:
+      - average
+      - mention
+      - passed
+      - rank
+      - ranked
+      - subjects
+      - term
+      - term_name
     Subject:
       type: object
       properties:

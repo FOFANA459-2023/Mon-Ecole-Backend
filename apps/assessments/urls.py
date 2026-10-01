@@ -12,4 +12,7 @@ router.register("assessments", api.AssessmentViewSet, basename="assessment")
 urlpatterns = [
     *router.urls,
     path("class-results/", api.ClassResultsView.as_view(), name="class-results"),
+    path("report-cards/", api.ReportCardView.as_view(), name="report-cards"),
+    path("report-comments/", api.ReportCommentsView.as_view(), name="report-comments"),
+    path("student-results/<int:pk>/", api.StudentResultsView.as_view(), name="student-results"),
 ]

@@ -139,6 +139,20 @@ def overall_average(marks: Iterable[tuple[Decimal | None, Decimal]], decimals: i
     return round_mark(sum((m * c for m, c in pairs), ZERO) / coefficients, decimals)
 
 
+def mention(value: Decimal | None, bands: Iterable[dict]) -> str:
+    """The label of the highest honours band reached ("Très bien" from 16...), or "" when none applies."""
+    if value is None:
+        return ""
+    reached = [b for b in bands if value >= Decimal(str(b.get("min", 0)))]
+    return str(max(reached, key=lambda b: Decimal(str(b.get("min", 0))))["label"]) if reached else ""
+
+
+def mean(values: Iterable[Decimal | None], decimals: int) -> Decimal | None:
+    """The plain average of the values that exist (the annual average of term averages)."""
+    present = [v for v in values if v is not None]
+    return round_mark(sum(present, ZERO) / len(present), decimals) if present else None
+
+
 @dataclass(frozen=True)
 class Stats:
     average: Decimal | None

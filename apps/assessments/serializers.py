@@ -16,13 +16,32 @@ def mark_field() -> serializers.DecimalField:
     return serializers.DecimalField(max_digits=7, decimal_places=3, allow_null=True)
 
 
+class MentionSerializer(serializers.Serializer):
+    min = serializers.DecimalField(max_digits=5, decimal_places=2, min_value=0)
+    label = serializers.CharField(max_length=40)  # type: ignore[assignment]  # "label" is also a Field attribute
+
+
 class GradingScaleSerializer(serializers.ModelSerializer):
     level = TenantPrimaryKeyRelatedField(queryset=Level.objects.all(), allow_null=True, required=False)
     level_name = serializers.SerializerMethodField()
+    mentions = serializers.ListField(
+        child=serializers.DictField(), required=False, max_length=10, help_text="[{min, label}], any order."
+    )
 
     class Meta:
         model = GradingScale
-        fields = ["id", "level", "level_name", "max_mark", "pass_mark", "decimals", "rank_method"]
+        fields = ["id", "level", "level_name", "max_mark", "pass_mark", "decimals", "rank_method", "mentions"]
+
+    def validate_mentions(self, value):
+        bands = MentionSerializer(data=value, many=True)
+        bands.is_valid(raise_exception=True)
+        cleaned = sorted(
+            ({"min": float(b["min"]), "label": b["label"].strip()} for b in bands.validated_data),
+            key=lambda b: -b["min"],
+        )
+        if len({b["min"] for b in cleaned}) != len(cleaned):
+            raise serializers.ValidationError(_("Two honours bands start at the same mark."))
+        return cleaned
 
     def get_level_name(self, obj) -> str:
         return obj.level.name if obj.level else ""
@@ -31,6 +50,8 @@ class GradingScaleSerializer(serializers.ModelSerializer):
         level = attrs["level"] if "level" in attrs else getattr(self.instance, "level", None)
         max_mark = attrs.get("max_mark", getattr(self.instance, "max_mark", Decimal("20")))
         pass_mark = attrs.get("pass_mark", getattr(self.instance, "pass_mark", Decimal("10")))
+        if any(b["min"] > max_mark for b in attrs.get("mentions", [])):
+            raise serializers.ValidationError({"mentions": [_("An honours band starts above the maximum.")]})
         if pass_mark < 0 or pass_mark > max_mark:
             raise serializers.ValidationError(
                 {"pass_mark": [_("The pass mark must be between 0 and the maximum.")]}
@@ -49,9 +70,11 @@ class GradingScaleSerializer(serializers.ModelSerializer):
 
 
 class ScaleBriefSerializer(serializers.ModelSerializer):
+    mentions = MentionSerializer(many=True, read_only=True)
+
     class Meta:
         model = GradingScale
-        fields = ["max_mark", "pass_mark", "decimals", "rank_method"]
+        fields = ["max_mark", "pass_mark", "decimals", "rank_method", "mentions"]
 
 
 class GradeCategorySerializer(serializers.ModelSerializer):
@@ -353,6 +376,7 @@ class ResultSubjectSerializer(serializers.Serializer):
 class ResultMarkSerializer(serializers.Serializer):
     class_subject = serializers.IntegerField()
     mark = mark_field()
+    rank = serializers.IntegerField(allow_null=True)
 
 
 class ResultStudentSerializer(serializers.Serializer):
@@ -371,3 +395,52 @@ class ClassResultsSerializer(serializers.Serializer):
     subjects = ResultSubjectSerializer(many=True)
     students = ResultStudentSerializer(many=True)
     stats = StatsSerializer()
+
+
+class ReportCardParamsSerializer(serializers.Serializer):
+    class_group = TenantPrimaryKeyRelatedField(queryset=ClassGroup.objects.all())
+    term = TenantPrimaryKeyRelatedField(
+        queryset=Term.objects.all(), required=False, allow_null=True, help_text="Leave out for the year."
+    )
+    enrollment = serializers.IntegerField(required=False, help_text="Only this student's card.")
+
+    def validate(self, attrs):
+        term = attrs.get("term")
+        if term is not None and term.academic_year_id != attrs["class_group"].academic_year_id:
+            raise serializers.ValidationError({"term": [_("Choose a term of the class's academic year.")]})
+        return attrs
+
+
+class CommentEntrySerializer(serializers.Serializer):
+    enrollment = serializers.IntegerField()
+    comment = serializers.CharField(max_length=600, allow_blank=True)
+
+
+class ReportCommentRowSerializer(serializers.Serializer):
+    enrollment = serializers.IntegerField()
+    student = serializers.IntegerField()
+    student_name = serializers.CharField()
+    comment = serializers.CharField()
+
+
+class SaveReportCommentsSerializer(ReportCardParamsSerializer):
+    comments = CommentEntrySerializer(many=True, max_length=500)  # type: ignore[call-arg]  # ListSerializer option
+
+
+class StudentTermResultSerializer(serializers.Serializer):
+    term = serializers.IntegerField(allow_null=True, help_text="Null = the whole year.")
+    term_name = serializers.CharField()
+    average = mark_field()
+    rank = serializers.IntegerField(allow_null=True)
+    ranked = serializers.IntegerField()
+    mention = serializers.CharField()
+    passed = serializers.BooleanField(allow_null=True)
+    subjects = serializers.IntegerField(help_text="Published subjects counted.")
+
+
+class StudentResultsSerializer(serializers.Serializer):
+    enrollment = serializers.IntegerField(allow_null=True)
+    class_group = serializers.IntegerField(allow_null=True)
+    class_name = serializers.CharField()
+    scale = ScaleBriefSerializer(allow_null=True)
+    terms = StudentTermResultSerializer(many=True)
