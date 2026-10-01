@@ -208,3 +208,25 @@ def test_unpublished_gradebooks_never_reach_a_card(setup, term, maths_marked):
     cards = term_cards(setup["class"], term)["cards"]
     assert all(card["lines"] == [] and card["average"] is None for card in cards)
     assert report_cards_pdf(term_cards(setup["class"], term)).startswith(b"%PDF")
+
+
+def test_last_year_s_results_survive_moving_up(setup, term, published, school, level, make_class):
+    """Once the class has moved up, its enrolments are "completed": last year's results must still count."""
+    from apps.academics.services import create_academic_year
+    from apps.enrollments import services as enrollment_services
+
+    next_year = create_academic_year(
+        school, name="2027-2028", start_date=date(2027, 9, 1), end_date=date(2028, 6, 30), term_count=3
+    )
+    upper = make_class("8ème A", academic_year=next_year)
+    enrollment_services.promote(setup["class"], upper)
+    rows = term_cards(setup["class"], term)["cards"]
+    assert len(rows) == 3 and {c["average"] for c in rows} != {None}
+    sheet = published["director"].get(f"{URL}{gradebook_of(setup['maths'], term).pk}/sheet/").data
+    assert sorted(r["rank"] for r in sheet["students"]) == [1, 2, 3]
+    comments = (
+        published["director"]
+        .get("/api/v1/report-comments/", {"class_group": setup["class"].pk, "term": term.pk})
+        .data
+    )
+    assert len(comments) == 3

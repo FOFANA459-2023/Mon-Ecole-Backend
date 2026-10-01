@@ -11,15 +11,13 @@ from apps.enrollments.models import Enrollment
 
 from . import engine
 from .models import Assessment, Grade, Gradebook, GradeCategory
-from .services import engine_scale, roster, scale_for
+from .services import IN_CLASS, engine_scale, roster, scale_for
 
 
 def with_counts(queryset):
     """Annotate gradebooks with how many assessments, students and marks they have."""
     students = (
-        Enrollment.objects.filter(
-            class_group=OuterRef("class_subject__class_group"), status=Enrollment.Status.ACTIVE
-        )
+        Enrollment.objects.filter(class_group=OuterRef("class_subject__class_group"), status__in=IN_CLASS)
         .order_by()
         .values("class_group")
         .annotate(n=Count("pk"))
@@ -135,7 +133,7 @@ def gradebook_sheet(gradebook: Gradebook) -> dict:
                 "student": enrollment.student_id,
                 "student_name": enrollment.student.full_name,
                 "student_number": enrollment.student.student_number,
-                "is_active": enrollment.status == Enrollment.Status.ACTIVE,
+                "is_active": enrollment.status in IN_CLASS,
                 "marks": [
                     {
                         "assessment": g.assessment_id,
@@ -196,7 +194,7 @@ def class_results(class_group: ClassGroup, term: Term, *, published_only: bool =
     scale_model = scale_for(class_group.school, class_group.level)
     scale = engine_scale(scale_model)
     enrollments = list(
-        Enrollment.objects.filter(class_group=class_group, status=Enrollment.Status.ACTIVE)
+        Enrollment.objects.filter(class_group=class_group, status__in=IN_CLASS)
         .select_related("student")
         .order_by("student__last_name", "student__first_name", "id")
     )

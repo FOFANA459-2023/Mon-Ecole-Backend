@@ -60,11 +60,16 @@ def ensure_gradebooks(school, term: Term) -> None:
     )
 
 
+# Students who count in a class's results: still there, or there until the year ended (moved up since).
+IN_CLASS = [Enrollment.Status.ACTIVE, Enrollment.Status.COMPLETED]
+
+
 def roster(gradebook: Gradebook) -> list[Enrollment]:
-    """The students of the gradebook: the class's current students, plus anyone who left but has marks."""
+    """The students of the gradebook: the class's students (this year's, or a finished year's), plus anyone
+    who left but has marks."""
     return list(
         Enrollment.objects.filter(
-            Q(status=Enrollment.Status.ACTIVE) | Q(grades__assessment__gradebook=gradebook),
+            Q(status__in=IN_CLASS) | Q(grades__assessment__gradebook=gradebook),
             class_group_id=gradebook.class_subject.class_group_id,
         )
         .select_related("student")

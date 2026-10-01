@@ -360,7 +360,7 @@ class ReportCommentsView(APIView):
         if not _may_comment(self.request, class_group):
             raise NotFound()
         enrollments = list(
-            Enrollment.objects.filter(class_group=class_group, status=Enrollment.Status.ACTIVE)
+            Enrollment.objects.filter(class_group=class_group, status__in=services.IN_CLASS)
             .select_related("student")
             .order_by("student__last_name", "student__first_name", "id")
         )

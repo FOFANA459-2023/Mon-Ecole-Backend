@@ -83,6 +83,15 @@ Then start the web app from the [Mon-Ecole](https://github.com/FOFANA459-2023/Mo
 
 Demo accounts (all `@monecole.test`): `admin` (Super Administrator in both demo schools), `directeur`, `secretariat`, `comptable`, `enseignant`, `teacher`. The demo password is set in `apps/schools/management/commands/seed_demo.py` (override with `DEMO_PASSWORD`).
 
+### Test schools (also on a server)
+
+`python manage.py seed_showcase` creates five fictional schools with a year and a half of history (two in
+Guinea, two in Liberia, and one registered yesterday), full of edge cases: twins, siblings, scholarships,
+overpayments, reversed payments, a student who left, a class change, an empty and a full class, gradebooks
+in every state, absences and lateness, last year's report cards. Their codes start with `essai-`; no login
+is created (the platform owner sees them all). `seed_showcase --delete` removes them and everything in them.
+Outside development both need `--allow-production`.
+
 ## Branches and pull requests
 
 `main` is protected: nothing reaches it without a pull request whose checks all pass. Work on `develop` (or a
