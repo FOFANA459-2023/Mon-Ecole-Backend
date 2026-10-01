@@ -22,6 +22,28 @@ class DashboardSummaryView(APIView):
     permission_classes = [IsAuthenticated, HasSchoolPermission]
     required_permissions = {"get": ["dashboard.view"]}
 
+    @staticmethod
+    def _attendance_today(request, classes):
+        """Today's registers in the classes counted above: how many are taken, and who is present."""
+        from apps.attendance.models import AttendanceRecord, ClassRegister
+        from apps.attendance.services import school_today
+
+        today = school_today(request.school)
+        counts = AttendanceRecord.objects.filter(
+            register__class_group__in=classes, register__date=today
+        ).aggregate(
+            present=Count("id", filter=Q(status="present")),
+            absent=Count("id", filter=Q(status="absent")),
+            late=Count("id", filter=Q(status="late")),
+            excused=Count("id", filter=Q(status="excused")),
+        )
+        return {
+            "date": today.isoformat(),
+            "registers_taken": ClassRegister.objects.filter(class_group__in=classes, date=today).count(),
+            "classes": classes.count(),
+            **counts,
+        }
+
     @extend_schema(parameters=[OpenApiParameter("academic_year", int, required=False)], responses={200: dict})
     def get(self, request):
         school = request.school
@@ -56,6 +78,11 @@ class DashboardSummaryView(APIView):
         capacity = sum(c for c in classes.values_list("capacity", flat=True) if c)
         staff = StaffMember.objects.filter(school=school, status="active")
         since = timezone.localdate() - timedelta(days=30)
+        attendance = (
+            self._attendance_today(request, classes)
+            if "attendance.view" in request.permission_codes
+            else None
+        )
 
         return Response(
             {
@@ -69,6 +96,7 @@ class DashboardSummaryView(APIView):
                 "teachers": staff.filter(staff_type="teacher").count(),
                 "staff": staff.count(),
                 "new_enrollments_30d": enrollments.filter(enrollment_date__gte=since).count(),
+                "attendance_today": attendance,
                 "by_level": [
                     {
                         "level_id": row["class_group__level_id"],

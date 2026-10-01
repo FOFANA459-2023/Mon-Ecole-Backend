@@ -53,6 +53,7 @@ _PARAMS = [
     (re.compile(r"\(\?P<pk>[^)]*\)"), "1"),
     (re.compile(r"\(\?P<link_id>[^)]*\)"), "1"),
     (re.compile(r"<str:kind>"), "students"),
+    (re.compile(r"<int:pk>"), "1"),
 ]
 
 

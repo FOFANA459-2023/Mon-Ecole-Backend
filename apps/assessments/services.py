@@ -60,11 +60,16 @@ def ensure_gradebooks(school, term: Term) -> None:
     )
 
 
+# Students who count in a class's results: still there, or there until the year ended (moved up since).
+IN_CLASS = [Enrollment.Status.ACTIVE, Enrollment.Status.COMPLETED]
+
+
 def roster(gradebook: Gradebook) -> list[Enrollment]:
-    """The students of the gradebook: the class's current students, plus anyone who left but has marks."""
+    """The students of the gradebook: the class's students (this year's, or a finished year's), plus anyone
+    who left but has marks."""
     return list(
         Enrollment.objects.filter(
-            Q(status=Enrollment.Status.ACTIVE) | Q(grades__assessment__gradebook=gradebook),
+            Q(status__in=IN_CLASS) | Q(grades__assessment__gradebook=gradebook),
             class_group_id=gradebook.class_subject.class_group_id,
         )
         .select_related("student")
@@ -360,3 +365,56 @@ def reopen(gradebook: Gradebook, *, reason: str, request=None) -> Gradebook:
         published_at=None,
         published_by=None,
     )
+
+
+# --- Report cards ------------------------------------------------------------------------------------------
+
+
+@transaction.atomic
+def save_report_comments(class_group, term, enrollments, entries: list[dict], *, request=None) -> int:
+    """Save the general comments of a class's report cards (an empty comment removes it). Audited."""
+    from .models import ReportComment
+
+    allowed = {e.pk for e in enrollments}
+    errors = {
+        str(index): [_("This student is not in the class.")]
+        for index, entry in enumerate(entries)
+        if entry["enrollment"] not in allowed
+    }
+    if errors:
+        raise ValidationError({"comments": errors})
+    existing = {c.enrollment_id: c for c in ReportComment.objects.filter(enrollment__in=allowed, term=term)}
+    old: dict[str, str | None] = {}
+    new: dict[str, str | None] = {}
+    for entry in entries:
+        text = entry["comment"].strip()
+        comment = existing.get(entry["enrollment"])
+        before = comment.comment if comment else None
+        if not text:
+            if comment is not None:
+                comment.delete()
+                old[str(entry["enrollment"])], new[str(entry["enrollment"])] = before, None
+            continue
+        if comment is None:
+            comment = ReportComment(
+                school=class_group.school,
+                enrollment_id=entry["enrollment"],
+                term=term,
+                created_by=_user(request),
+            )
+        elif comment.comment == text:
+            continue
+        comment.comment, comment.updated_by = text, _user(request)
+        comment.save()
+        old[str(entry["enrollment"])], new[str(entry["enrollment"])] = before, text
+    if new:
+        audit.record(
+            "update",
+            request=request,
+            instance=class_group,
+            module="grades",
+            summary=f"Report card comments: {class_group.name}, {term.name if term else 'year'} ({len(new)})",
+            old=old,
+            new=new,
+        )
+    return len(new)

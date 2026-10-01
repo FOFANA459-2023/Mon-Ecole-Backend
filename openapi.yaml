@@ -312,6 +312,236 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/attendance/absences/:
+    get:
+      operationId: attendance_absences_list
+      description: Students with absences over a period (30 days by default), most
+        absent first.
+      parameters:
+      - in: query
+        name: class_group
+        schema:
+          type: integer
+          nullable: true
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+        description: Defaults to 30 days before date_to.
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+        description: Defaults to today.
+      - in: query
+        name: min_absences
+        schema:
+          type: integer
+          maximum: 365
+          minimum: 1
+          default: 1
+      tags:
+      - attendance
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AbsenceRow'
+          description: ''
+  /api/v1/attendance/class-month/:
+    get:
+      operationId: attendance_class_month_retrieve
+      description: 'A month of a class''s registers: a day-by-day grid and each student''s
+        totals.'
+      parameters:
+      - in: query
+        name: class_group
+        schema:
+          type: integer
+        required: true
+      - in: query
+        name: month
+        schema:
+          type: string
+          minLength: 1
+          pattern: ^\d{4}-(0[1-9]|1[0-2])$
+        description: YYYY-MM
+        required: true
+      tags:
+      - attendance
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClassMonth'
+          description: ''
+  /api/v1/attendance/day/:
+    get:
+      operationId: attendance_day_list
+      description: The classes in session on a day (the user's own, for teachers)
+        and whether their register is taken.
+      parameters:
+      - in: query
+        name: date
+        schema:
+          type: string
+          format: date
+        description: Defaults to today (school time).
+      tags:
+      - attendance
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DayClass'
+          description: ''
+  /api/v1/attendance/register/:
+    get:
+      operationId: attendance_register_retrieve
+      description: |-
+        A class's register for a day. GET shows it (everyone present when not taken yet); POST takes or
+        corrects it. Teachers take their classes' registers on the day; earlier days need attendance.edit.
+      parameters:
+      - in: query
+        name: class_group
+        schema:
+          type: integer
+        required: true
+      - in: query
+        name: date
+        schema:
+          type: string
+          format: date
+        description: Defaults to today (school time).
+      tags:
+      - attendance
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterSheet'
+          description: ''
+    post:
+      operationId: attendance_register_create
+      description: |-
+        A class's register for a day. GET shows it (everyone present when not taken yet); POST takes or
+        corrects it. Teachers take their classes' registers on the day; earlier days need attendance.edit.
+      tags:
+      - attendance
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveRegisterRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SaveRegisterRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SaveRegisterRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterSheet'
+          description: ''
+  /api/v1/attendance/staff/:
+    get:
+      operationId: attendance_staff_retrieve
+      description: 'The staff register for a day: GET shows it, POST records it.'
+      parameters:
+      - in: query
+        name: date
+        schema:
+          type: string
+          format: date
+        description: Defaults to today (school time).
+      tags:
+      - attendance
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffSheet'
+          description: ''
+    post:
+      operationId: attendance_staff_create
+      description: 'The staff register for a day: GET shows it, POST records it.'
+      tags:
+      - attendance
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveStaffAttendanceRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SaveStaffAttendanceRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SaveStaffAttendanceRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffSheet'
+          description: ''
+  /api/v1/attendance/students/{id}/:
+    get:
+      operationId: attendance_students_retrieve
+      description: 'One student''s attendance for a school year: totals and the days
+        they were absent, late or excused.'
+      parameters:
+      - in: query
+        name: academic_year
+        schema:
+          type: integer
+        description: Defaults to the current year.
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - attendance
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentAttendance'
+          description: ''
   /api/v1/audit-logs/:
     get:
       operationId: audit_logs_list
@@ -4126,6 +4356,105 @@ paths:
               schema:
                 $ref: '#/components/schemas/Refund'
           description: ''
+  /api/v1/report-cards/:
+    get:
+      operationId: report_cards_retrieve
+      description: |-
+        Report cards as one PDF: a whole class (one page per student) or one student; a term, or the year
+        when `term` is left out. Only published marks count.
+      parameters:
+      - in: query
+        name: class_group
+        schema:
+          type: integer
+        required: true
+      - in: query
+        name: enrollment
+        schema:
+          type: integer
+        description: Only this student's card.
+      - in: query
+        name: term
+        schema:
+          type: integer
+          nullable: true
+        description: Leave out for the year.
+      tags:
+      - report-cards
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/report-comments/:
+    get:
+      operationId: report_comments_list
+      description: The general comment on each student's report card, for a term or
+        (no term) the year.
+      parameters:
+      - in: query
+        name: class_group
+        schema:
+          type: integer
+        required: true
+      - in: query
+        name: enrollment
+        schema:
+          type: integer
+        description: Only this student's card.
+      - in: query
+        name: term
+        schema:
+          type: integer
+          nullable: true
+        description: Leave out for the year.
+      tags:
+      - report-comments
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReportCommentRow'
+          description: ''
+    post:
+      operationId: report_comments_create
+      description: The general comment on each student's report card, for a term or
+        (no term) the year.
+      tags:
+      - report-comments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveReportCommentsRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SaveReportCommentsRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SaveReportCommentsRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReportCommentRow'
+          description: ''
   /api/v1/reports/finance/{key}/:
     get:
       operationId: reports_finance_retrieve
@@ -4953,6 +5282,28 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/student-results/{id}/:
+    get:
+      operationId: student_results_retrieve
+      description: 'A student''s results this school year: each term''s average, rank
+        and honours band, and the year''s.'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - student-results
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentResults'
+          description: ''
   /api/v1/students/:
     get:
       operationId: students_list
@@ -5924,6 +6275,34 @@ paths:
           description: No response body
 components:
   schemas:
+    AbsenceRow:
+      type: object
+      properties:
+        enrollment:
+          type: integer
+        student:
+          type: integer
+        student_name:
+          type: string
+        student_number:
+          type: string
+        class_name:
+          type: string
+        absent:
+          type: integer
+        late:
+          type: integer
+        excused:
+          type: integer
+      required:
+      - absent
+      - class_name
+      - enrollment
+      - excused
+      - late
+      - student
+      - student_name
+      - student_number
     AcademicYear:
       type: object
       properties:
@@ -6092,6 +6471,18 @@ components:
       required:
       - homeroom_classes
       - subjects
+    AttendanceStatusEnum:
+      enum:
+      - present
+      - absent
+      - late
+      - excused
+      type: string
+      description: |-
+        * `present` - Present
+        * `absent` - Absent
+        * `late` - Late
+        * `excused` - Excused absence
     AuditLog:
       type: object
       properties:
@@ -6628,6 +7019,33 @@ components:
       - academic_year
       - level
       - name
+    ClassMonth:
+      type: object
+      properties:
+        class_group:
+          type: integer
+        class_name:
+          type: string
+        month:
+          type: string
+        dates:
+          type: array
+          items:
+            type: string
+            format: date
+        students:
+          type: array
+          items:
+            $ref: '#/components/schemas/MonthStudent'
+        totals:
+          $ref: '#/components/schemas/Totals'
+      required:
+      - class_group
+      - class_name
+      - dates
+      - month
+      - students
+      - totals
     ClassResults:
       type: object
       properties:
@@ -6725,6 +7143,17 @@ components:
           maxLength: 255
       required:
       - counted_closing
+    CommentEntryRequest:
+      type: object
+      properties:
+        enrollment:
+          type: integer
+        comment:
+          type: string
+          maxLength: 600
+      required:
+      - comment
+      - enrollment
     CopySetupRequest:
       type: object
       properties:
@@ -6749,6 +7178,60 @@ components:
         * `lower_secondary` - Lower secondary
         * `upper_secondary` - Upper secondary
         * `other` - Other
+    DayClass:
+      type: object
+      properties:
+        class_group:
+          type: integer
+        class_name:
+          type: string
+        level_name:
+          type: string
+        student_count:
+          type: integer
+        register:
+          type: integer
+          nullable: true
+        taken_by_name:
+          type: string
+        taken_at:
+          type: string
+          format: date-time
+          nullable: true
+        present:
+          type: integer
+        absent:
+          type: integer
+        late:
+          type: integer
+        excused:
+          type: integer
+        can_take:
+          type: boolean
+      required:
+      - absent
+      - can_take
+      - class_group
+      - class_name
+      - excused
+      - late
+      - level_name
+      - present
+      - register
+      - student_count
+      - taken_at
+      - taken_by_name
+    DayStatus:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        status:
+          $ref: '#/components/schemas/AttendanceStatusEnum'
+      required:
+      - date
+      - status
     Director:
       type: object
       properties:
@@ -7707,6 +8190,13 @@ components:
           minimum: 0
         rank_method:
           $ref: '#/components/schemas/RankMethodEnum'
+        mentions:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+          description: '[{min, label}], any order.'
+          maxItems: 10
       required:
       - id
       - level_name
@@ -7731,6 +8221,13 @@ components:
           minimum: 0
         rank_method:
           $ref: '#/components/schemas/RankMethodEnum'
+        mentions:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+          description: '[{min, label}], any order.'
+          maxItems: 10
     GrantAccessRequest:
       type: object
       properties:
@@ -8553,6 +9050,19 @@ components:
       - id
       - invitation_expires_at
       - username
+    Mention:
+      type: object
+      properties:
+        min:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        label:
+          type: string
+          maxLength: 40
+      required:
+      - label
+      - min
     MissingPolicyEnum:
       enum:
       - exclude
@@ -8561,6 +9071,36 @@ components:
       description: |-
         * `exclude` - Leave missing marks out of the average
         * `zero` - Count missing marks as zero
+    MonthStudent:
+      type: object
+      properties:
+        present:
+          type: integer
+        absent:
+          type: integer
+        late:
+          type: integer
+        excused:
+          type: integer
+        enrollment:
+          type: integer
+        student:
+          type: integer
+        student_name:
+          type: string
+        days:
+          type: array
+          items:
+            $ref: '#/components/schemas/DayStatus'
+      required:
+      - absent
+      - days
+      - enrollment
+      - excused
+      - late
+      - present
+      - student
+      - student_name
     NewDirectorRequest:
       type: object
       properties:
@@ -8627,6 +9167,9 @@ components:
       - first_name
       - gender
       - last_name
+    NullEnum:
+      enum:
+      - null
     OpenClosedStatusEnum:
       enum:
       - open
@@ -9353,6 +9896,13 @@ components:
           minimum: 0
         rank_method:
           $ref: '#/components/schemas/RankMethodEnum'
+        mentions:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+          description: '[{min, label}], any order.'
+          maxItems: 10
     PatchedGuardianLinkUpdateRequest:
       type: object
       properties:
@@ -10099,6 +10649,25 @@ components:
           maxLength: 255
       required:
       - reason
+    RecordEntryRequest:
+      type: object
+      properties:
+        enrollment:
+          type: integer
+        status:
+          $ref: '#/components/schemas/AttendanceStatusEnum'
+        minutes_late:
+          type: integer
+          maximum: 600
+          minimum: 1
+          nullable: true
+        note:
+          type: string
+          default: ''
+          maxLength: 255
+      required:
+      - enrollment
+      - status
     RecordExpenseRequest:
       type: object
       properties:
@@ -10347,6 +10916,87 @@ components:
       - director
       - name
       - timezone
+    RegisterSheet:
+      type: object
+      properties:
+        class_group:
+          type: integer
+        class_name:
+          type: string
+        date:
+          type: string
+          format: date
+        register:
+          type: integer
+          nullable: true
+        taken_by_name:
+          type: string
+        taken_at:
+          type: string
+          format: date-time
+          nullable: true
+        updated_by_name:
+          type: string
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+        can_edit:
+          type: boolean
+        can_take_today:
+          type: boolean
+        students:
+          type: array
+          items:
+            $ref: '#/components/schemas/RegisterStudent'
+      required:
+      - can_edit
+      - can_take_today
+      - class_group
+      - class_name
+      - date
+      - register
+      - students
+      - taken_at
+      - taken_by_name
+      - updated_at
+      - updated_by_name
+    RegisterStudent:
+      type: object
+      properties:
+        enrollment:
+          type: integer
+        student:
+          type: integer
+        student_name:
+          type: string
+        student_number:
+          type: string
+        status:
+          nullable: true
+          description: |-
+            Null = not marked yet.
+
+            * `present` - Present
+            * `absent` - Absent
+            * `late` - Late
+            * `excused` - Excused absence
+          oneOf:
+          - $ref: '#/components/schemas/AttendanceStatusEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        minutes_late:
+          type: integer
+          nullable: true
+        note:
+          type: string
+      required:
+      - enrollment
+      - minutes_late
+      - note
+      - status
+      - student
+      - student_name
+      - student_number
     RegistrationRequest:
       type: object
       description: 'New enrolment in one request: a new student (or an existing one),
@@ -10391,6 +11041,22 @@ components:
         * `mother` - Mother
         * `guardian` - Guardian
         * `other` - Other
+    ReportCommentRow:
+      type: object
+      properties:
+        enrollment:
+          type: integer
+        student:
+          type: integer
+        student_name:
+          type: string
+        comment:
+          type: string
+      required:
+      - comment
+      - enrollment
+      - student
+      - student_name
     ResultMark:
       type: object
       properties:
@@ -10401,9 +11067,13 @@ components:
           format: decimal
           pattern: ^-?\d{0,4}(?:\.\d{0,3})?$
           nullable: true
+        rank:
+          type: integer
+          nullable: true
       required:
       - class_subject
       - mark
+      - rank
     ResultStudent:
       type: object
       properties:
@@ -10565,6 +11235,54 @@ components:
           type: integer
       required:
       - changed
+    SaveRegisterRequest:
+      type: object
+      properties:
+        class_group:
+          type: integer
+        date:
+          type: string
+          format: date
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecordEntryRequest'
+      required:
+      - class_group
+      - date
+      - records
+    SaveReportCommentsRequest:
+      type: object
+      properties:
+        class_group:
+          type: integer
+        term:
+          type: integer
+          nullable: true
+          description: Leave out for the year.
+        enrollment:
+          type: integer
+          description: Only this student's card.
+        comments:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommentEntryRequest'
+      required:
+      - class_group
+      - comments
+    SaveStaffAttendanceRequest:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/StaffEntryRequest'
+      required:
+      - date
+      - entries
     ScaleBrief:
       type: object
       properties:
@@ -10583,6 +11301,13 @@ components:
           minimum: 0
         rank_method:
           $ref: '#/components/schemas/RankMethodEnum'
+        mentions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Mention'
+          readOnly: true
+      required:
+      - mentions
     School:
       type: object
       properties:
@@ -10909,6 +11634,20 @@ components:
       - last_name
       - photo_url
       - status
+    StaffAttendanceStatusEnum:
+      enum:
+      - present
+      - absent
+      - late
+      - excused
+      - leave
+      type: string
+      description: |-
+        * `present` - Present
+        * `absent` - Absent
+        * `late` - Late
+        * `excused` - Excused absence
+        * `leave` - On leave
     StaffCreateRequest:
       type: object
       description: 'Adding a staff member always gives them a login: an email and
@@ -10971,6 +11710,78 @@ components:
       - first_name
       - last_name
       - role_id
+    StaffEntryRequest:
+      type: object
+      properties:
+        staff:
+          type: integer
+        status:
+          $ref: '#/components/schemas/StaffAttendanceStatusEnum'
+        minutes_late:
+          type: integer
+          maximum: 600
+          minimum: 1
+          nullable: true
+        note:
+          type: string
+          default: ''
+          maxLength: 255
+      required:
+      - staff
+      - status
+    StaffRow:
+      type: object
+      properties:
+        staff:
+          type: integer
+        full_name:
+          type: string
+        position:
+          type: string
+        staff_type:
+          type: string
+        recorded:
+          type: boolean
+        status:
+          nullable: true
+          description: |-
+            Null = not recorded yet.
+
+            * `present` - Present
+            * `absent` - Absent
+            * `late` - Late
+            * `excused` - Excused absence
+            * `leave` - On leave
+          oneOf:
+          - $ref: '#/components/schemas/StaffAttendanceStatusEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        minutes_late:
+          type: integer
+          nullable: true
+        note:
+          type: string
+      required:
+      - full_name
+      - minutes_late
+      - note
+      - position
+      - recorded
+      - staff
+      - staff_type
+      - status
+    StaffSheet:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        staff:
+          type: array
+          items:
+            $ref: '#/components/schemas/StaffRow'
+      required:
+      - date
+      - staff
     StaffTypeEnum:
       enum:
       - teacher
@@ -11151,6 +11962,33 @@ components:
       - student
       - student_name
       - student_number
+    StudentAttendance:
+      type: object
+      properties:
+        present:
+          type: integer
+        absent:
+          type: integer
+        late:
+          type: integer
+        excused:
+          type: integer
+        academic_year:
+          type: integer
+        days:
+          type: integer
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/StudentEvent'
+      required:
+      - absent
+      - academic_year
+      - days
+      - events
+      - excused
+      - late
+      - present
     StudentDiscount:
       type: object
       properties:
@@ -11227,6 +12065,27 @@ components:
       - academic_year
       - student
       - value
+    StudentEvent:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        class_name:
+          type: string
+        status:
+          $ref: '#/components/schemas/AttendanceStatusEnum'
+        minutes_late:
+          type: integer
+          nullable: true
+        note:
+          type: string
+      required:
+      - class_name
+      - date
+      - minutes_late
+      - note
+      - status
     StudentList:
       type: object
       properties:
@@ -11326,6 +12185,67 @@ components:
       required:
       - first_name
       - last_name
+    StudentResults:
+      type: object
+      properties:
+        enrollment:
+          type: integer
+          nullable: true
+        class_group:
+          type: integer
+          nullable: true
+        class_name:
+          type: string
+        scale:
+          allOf:
+          - $ref: '#/components/schemas/ScaleBrief'
+          nullable: true
+        terms:
+          type: array
+          items:
+            $ref: '#/components/schemas/StudentTermResult'
+      required:
+      - class_group
+      - class_name
+      - enrollment
+      - scale
+      - terms
+    StudentTermResult:
+      type: object
+      properties:
+        term:
+          type: integer
+          nullable: true
+          description: Null = the whole year.
+        term_name:
+          type: string
+        average:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,3})?$
+          nullable: true
+        rank:
+          type: integer
+          nullable: true
+        ranked:
+          type: integer
+        mention:
+          type: string
+        passed:
+          type: boolean
+          nullable: true
+        subjects:
+          type: integer
+          description: Published subjects counted.
+      required:
+      - average
+      - mention
+      - passed
+      - rank
+      - ranked
+      - subjects
+      - term
+      - term_name
     Subject:
       type: object
       properties:
@@ -11456,6 +12376,22 @@ components:
       - name
       - order
       - start_date
+    Totals:
+      type: object
+      properties:
+        present:
+          type: integer
+        absent:
+          type: integer
+        late:
+          type: integer
+        excused:
+          type: integer
+      required:
+      - absent
+      - excused
+      - late
+      - present
     VerifyEmailRequest:
       type: object
       properties:

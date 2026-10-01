@@ -211,8 +211,9 @@ Common fields on every table: `id` (BigAutoField), `created_at`, `updated_at`, `
 - `CashRegister(name)`; `CashSession(register, date, opened_by, opening_balance, closed_by, counted_closing, expected_closing, difference, status open/closed)`
 - `CashTransaction(session, type IN/OUT, category, amount, method, source payment|expense|manual, reference, description, created_by, reversal_of)` — append-only
 
-**attendance**
-- `AttendanceSession(class, date, period/subject optional, taken_by, submitted_at, locked)`; `AttendanceRecord(session, enrollment, status present/absent/late/excused/unexcused, minutes_late, note)`; `StaffAttendance(staff, date, status, note)`
+**attendance** (built 2026-10-01: one register per class per day)
+- `ClassRegister(class_group, date, created_by = who took it, updated_by)`; `AttendanceRecord(register, enrollment, status present/absent/late/excused, minutes_late (late only), note)`; `StaffAttendance(staff, date, status present/absent/late/excused/leave, minutes_late, note)`
+- Taken on the day by the class's teachers (subject teachers and class teacher); earlier days need `attendance.edit`; staff presence needs `attendance.staff` (Director, Administrative Staff). Every change is audited (old → new). Per-lesson registers and the nightly absenteeism alert are not built yet.
 
 **assessments / results** — grading rules belong to the teacher (decided 2026-10-01: schools in Guinea and Liberia have no common rules; each teacher chooses how many quizzes, tests, homework and exams to give and what to call them)
 - `GradingScale(school, level null=school default, max_mark e.g. 20/10/100, pass_mark, decimals, rank_method competition|dense)` — how marks are *reported*; the only school-level rule
@@ -220,7 +221,8 @@ Common fields on every table: `id` (BigAutoField), `created_at`, `updated_at`, `
 - `GradeCategory(gradebook, name — free text, weight, method average|total, order)` — the teacher's own groups ("Interrogations" ×1, "Composition" ×2, "Quizzes" 20 %…)
 - `Assessment(gradebook, category, name — free text, date, max_score — any number, weight within its category)` — as many as the teacher wants
 - `Grade(assessment, enrollment, score null=not marked, excused flag, comment, updated_by)`
-- Subject marks, class results and ranks are computed on read from the rules (never stored); published gradebooks are locked, so results stay stable. `SubjectResult`/`TermResult` snapshots arrive with report cards.
+- Subject marks, class results and ranks are computed on read from the rules (never stored); published gradebooks are locked, so results stay stable.
+- Report cards (built 2026-10-01): `GradingScale.mentions` (honours bands `[{min, label}]`), `ReportComment(enrollment, term null = year, comment)`. PDFs are rendered on request from **published** gradebooks only (one A4 page per student, a class or one student): subject, coefficient, mark, mark × coefficient, class average, subject rank, appreciation (honours band), totals, average, rank (ties "ex aequo"), class average/highest/lowest, honours band, the term's absences and lateness, general comment, signature boxes. Annual card: each term's mark per subject, annual subject mark = average of the term marks, annual average = average of the term averages, rank and decision (pass mark). Not stored and not versioned yet (reopened marks change a reprint); no client template yet — the layout is the default until a sample report card arrives.
 - `ReportCard(enrollment, term, version, pdf, generated_at, published)`
 
 **administration / documents / notifications / audit / ai**

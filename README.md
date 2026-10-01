@@ -17,7 +17,7 @@ This repository is the **Django REST API** (plus Celery worker and beat). The we
 | 1 | Foundation: auth, multi-school tenancy, roles & permissions, audit log, school settings, users | Built |
 | 2 | Core school management: students, guardians, enrolment, classes, subjects, staff, documents, import, search | Built |
 | 3 | Finance & cash register: fees, invoices, payments, receipts, expenses, refunds, cash sessions, finance reports | Built |
-| 4 | Academics: teacher-defined grading rules, assessments, marks, review/publish, class results and ranks | In progress (attendance and report cards next) |
+| 4 | Academics: teacher-defined grading rules, assessments, marks, review/publish, class results and ranks; daily class registers, staff attendance, attendance reports; report cards (term and annual PDF, honours bands, comments) | Built |
 | 5–7 | Reports & notifications, AI, hardening & go-live | Planned |
 
 Hosting today: a free-tier production server on AWS (one EC2 instance, [infra/aws](infra/aws/README.md)) with Supabase Free. The planned ECS Fargate setup comes before go-live; the deploy workflow supports both.
@@ -45,6 +45,7 @@ apps/finance/       fees, discounts, invoices, payments, receipts, expenses, ref
 apps/cashregister/  cash registers and sessions
 apps/reports/       finance reports (JSON, PDF, Excel, CSV)
 apps/assessments/   grading scales, teachers' gradebooks, categories, assessments, marks, calculation engine, results
+apps/attendance/    daily class registers, staff attendance, month grid, absences, student summary
 infra/aws/          Terraform for the free-tier production server (EC2, S3, ECR, GitHub deploy role)
 deploy/ec2/         Docker Compose stack and deploy script run on that server
 openapi.yaml        generated API schema (the web app generates its TypeScript types from it)
@@ -81,6 +82,15 @@ API http://localhost:8000/api/v1/ · API docs http://localhost:8000/api/docs/ ·
 Then start the web app from the [Mon-Ecole](https://github.com/FOFANA459-2023/Mon-Ecole) repository; it expects this API on port 8000.
 
 Demo accounts (all `@monecole.test`): `admin` (Super Administrator in both demo schools), `directeur`, `secretariat`, `comptable`, `enseignant`, `teacher`. The demo password is set in `apps/schools/management/commands/seed_demo.py` (override with `DEMO_PASSWORD`).
+
+### Test schools (also on a server)
+
+`python manage.py seed_showcase` creates five fictional schools with a year and a half of history (two in
+Guinea, two in Liberia, and one registered yesterday), full of edge cases: twins, siblings, scholarships,
+overpayments, reversed payments, a student who left, a class change, an empty and a full class, gradebooks
+in every state, absences and lateness, last year's report cards. Their codes start with `essai-`; no login
+is created (the platform owner sees them all). `seed_showcase --delete` removes them and everything in them.
+Outside development both need `--allow-production`.
 
 ## Branches and pull requests
 

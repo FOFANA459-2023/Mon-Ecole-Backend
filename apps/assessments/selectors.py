@@ -11,15 +11,13 @@ from apps.enrollments.models import Enrollment
 
 from . import engine
 from .models import Assessment, Grade, Gradebook, GradeCategory
-from .services import engine_scale, roster, scale_for
+from .services import IN_CLASS, engine_scale, roster, scale_for
 
 
 def with_counts(queryset):
     """Annotate gradebooks with how many assessments, students and marks they have."""
     students = (
-        Enrollment.objects.filter(
-            class_group=OuterRef("class_subject__class_group"), status=Enrollment.Status.ACTIVE
-        )
+        Enrollment.objects.filter(class_group=OuterRef("class_subject__class_group"), status__in=IN_CLASS)
         .order_by()
         .values("class_group")
         .annotate(n=Count("pk"))
@@ -135,7 +133,7 @@ def gradebook_sheet(gradebook: Gradebook) -> dict:
                 "student": enrollment.student_id,
                 "student_name": enrollment.student.full_name,
                 "student_number": enrollment.student.student_number,
-                "is_active": enrollment.status == Enrollment.Status.ACTIVE,
+                "is_active": enrollment.status in IN_CLASS,
                 "marks": [
                     {
                         "assessment": g.assessment_id,
@@ -181,19 +179,22 @@ def _result_row(enrollment, marks, average, ranking, scale: engine.Scale) -> dic
         "student": enrollment.student_id,
         "student_name": enrollment.student.full_name,
         "student_number": enrollment.student.student_number,
-        "marks": [{"class_subject": cs, "mark": mark} for cs, mark in marks],
+        "marks": [{"class_subject": cs, "mark": mark, "rank": rank} for cs, mark, rank in marks],
         "average": average,
         "rank": ranking.get(enrollment.pk),
         "passed": None if average is None else average >= scale.pass_mark,
     }
 
 
-def class_results(class_group: ClassGroup, term: Term) -> dict:
-    """Every subject's mark for every current student of a class, the overall average and the rank."""
+def class_results(class_group: ClassGroup, term: Term, *, published_only: bool = False) -> dict:
+    """Every subject's mark for every current student of a class, the overall average and the rank.
+
+    `published_only` (report cards) leaves out the subjects whose marks are not published yet.
+    """
     scale_model = scale_for(class_group.school, class_group.level)
     scale = engine_scale(scale_model)
     enrollments = list(
-        Enrollment.objects.filter(class_group=class_group, status=Enrollment.Status.ACTIVE)
+        Enrollment.objects.filter(class_group=class_group, status__in=IN_CLASS)
         .select_related("student")
         .order_by("student__last_name", "student__first_name", "id")
     )
@@ -212,6 +213,8 @@ def class_results(class_group: ClassGroup, term: Term) -> dict:
         "subject__name"
     ):
         gradebook = gradebooks.get(class_subject.pk)
+        if published_only and (gradebook is None or gradebook.status != Gradebook.Status.PUBLISHED):
+            continue
         if gradebook is not None and gradebook.assessments.all():
             grades = [g for a in gradebook.assessments.all() for g in a.grades.all()]
             marks = subject_marks(gradebook, scale, ids, grades)
@@ -231,6 +234,7 @@ def class_results(class_group: ClassGroup, term: Term) -> dict:
             }
         )
     coefficients = {s["class_subject"]: s["coefficient"] for s in subjects}
+    subject_ranks = {cs: engine.ranks(marks_by_subject[cs], scale.rank_method) for cs in coefficients}
     averages = {
         pk: engine.overall_average(
             ((marks_by_subject[cs][pk], coefficients[cs]) for cs in coefficients), scale.decimals
@@ -240,7 +244,11 @@ def class_results(class_group: ClassGroup, term: Term) -> dict:
     ranking = engine.ranks(averages, scale.rank_method)
     students = [
         _result_row(
-            e, [(cs, marks_by_subject[cs][e.pk]) for cs in coefficients], averages[e.pk], ranking, scale
+            e,
+            [(cs, marks_by_subject[cs][e.pk], subject_ranks[cs].get(e.pk)) for cs in coefficients],
+            averages[e.pk],
+            ranking,
+            scale,
         )
         for e in enrollments
     ]

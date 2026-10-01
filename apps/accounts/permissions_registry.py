@@ -80,6 +80,7 @@ MODULES: list[tuple[str, str, list[tuple[str, str]]]] = [
             ("attendance.view", "View attendance"),
             ("attendance.record", "Take attendance"),
             ("attendance.edit", "Correct past attendance"),
+            ("attendance.staff", "Record staff attendance"),
         ],
     ),
     (
@@ -137,6 +138,7 @@ SYSTEM_ROLES: dict[str, dict] = {
             "subjects.view",
             "staff.view",
             "attendance.view",
+            "attendance.staff",
             "reports.view",
         ],
     },

@@ -41,6 +41,7 @@ Schools can adjust built-in roles or create their own in **Settings → Roles**;
 | Attendance | View attendance (`attendance.view`) | ✔ | ✔ |  | ✔ |  |
 | Attendance | Take attendance (`attendance.record`) | ✔ |  |  | ✔ |  |
 | Attendance | Correct past attendance (`attendance.edit`) | ✔ |  |  |  |  |
+| Attendance | Record staff attendance (`attendance.staff`) | ✔ | ✔ |  |  |  |
 | Assessments & grades | View grades (`grades.view`) | ✔ |  |  | ✔ |  |
 | Assessments & grades | Enter grades (`grades.enter`) | ✔ |  |  | ✔ |  |
 | Assessments & grades | Submit grades for review (`grades.submit`) | ✔ |  |  | ✔ |  |

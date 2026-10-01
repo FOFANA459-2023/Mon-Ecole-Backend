@@ -1,4 +1,5 @@
 from django.db.models import Prefetch
+from django.utils.text import slugify
 from django.utils.translation import gettext as _
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
@@ -11,11 +12,17 @@ from rest_framework.views import APIView
 
 from apps.academics.models import Term
 from apps.academics.scoping import staff_profile
+from apps.academics.services import current_year
+from apps.audit import services as audit
+from apps.core.pdf import pdf_response
 from apps.core.permissions import HasSchoolPermission
 from apps.core.viewsets import TenantModelViewSet
+from apps.enrollments.models import Enrollment
+from apps.people.models import Student
 
 from . import services
-from .models import Assessment, Gradebook, GradeCategory, GradingScale
+from .models import Assessment, Gradebook, GradeCategory, GradingScale, ReportComment
+from .reportcards import annual_cards, report_cards_pdf, student_results, term_cards
 from .scoping import can_view_class, visible_gradebooks
 from .selectors import class_results, gradebook_sheet, with_counts
 from .serializers import (
@@ -30,8 +37,12 @@ from .serializers import (
     GradebookUpdateSerializer,
     GradeCategorySerializer,
     GradingScaleSerializer,
+    ReportCardParamsSerializer,
+    ReportCommentRowSerializer,
     SaveGradesResultSerializer,
     SaveGradesSerializer,
+    SaveReportCommentsSerializer,
+    StudentResultsSerializer,
 )
 
 VIEW = ["grades.view"]
@@ -290,3 +301,136 @@ class ClassResultsView(APIView):
         if not can_view_class(request, class_group):
             raise NotFound()
         return Response(ClassResultsSerializer(class_results(class_group, term)).data)
+
+
+def _may_comment(request, class_group) -> bool:
+    """Report-card comments: whoever prints report cards, and the class teacher."""
+    if "reportcards.generate" in request.permission_codes:
+        return can_view_class(request, class_group)
+    staff = staff_profile(request)
+    return staff is not None and class_group.class_teacher_id == staff.pk
+
+
+class ReportCardView(APIView):
+    """Report cards as one PDF: a whole class (one page per student) or one student; a term, or the year
+    when `term` is left out. Only published marks count."""
+
+    permission_classes = [IsAuthenticated, HasSchoolPermission]
+    required_permissions: dict[str, list[str]] = {"get": ["reportcards.generate"]}
+
+    @extend_schema(parameters=[ReportCardParamsSerializer], responses={(200, "application/pdf"): bytes})
+    def get(self, request):
+        params = ReportCardParamsSerializer(data=request.query_params, context={"request": request})
+        params.is_valid(raise_exception=True)
+        data = params.validated_data
+        class_group, term = data["class_group"], data.get("term")
+        if not can_view_class(request, class_group):
+            raise NotFound()
+        enrollment = None
+        if data.get("enrollment"):
+            enrollment = (
+                Enrollment.objects.filter(pk=data["enrollment"], class_group=class_group)
+                .select_related("student")
+                .first()
+            )
+            if enrollment is None:
+                raise NotFound()
+        cards = term_cards(class_group, term, enrollment) if term else annual_cards(class_group, enrollment)
+        period = slugify(term.name) if term else "annuel"
+        who = slugify(enrollment.student.full_name) if enrollment else slugify(class_group.name)
+        audit.record(
+            "export",
+            request=request,
+            instance=class_group,
+            module="grades",
+            summary=f"Report cards printed: {class_group.name}, {term.name if term else 'year'}"
+            + (f", {enrollment.student.full_name}" if enrollment else f" ({len(cards['cards'])} students)"),
+        )
+        return pdf_response(report_cards_pdf(cards), f"bulletin-{who}-{period}.pdf")
+
+
+class ReportCommentsView(APIView):
+    """The general comment on each student's report card, for a term or (no term) the year."""
+
+    permission_classes = [IsAuthenticated, HasSchoolPermission]
+    required_permissions: dict[str, list[str]] = {"get": VIEW, "post": VIEW}
+
+    def _scope(self, data):
+        class_group, term = data["class_group"], data.get("term")
+        if not _may_comment(self.request, class_group):
+            raise NotFound()
+        enrollments = list(
+            Enrollment.objects.filter(class_group=class_group, status__in=services.IN_CLASS)
+            .select_related("student")
+            .order_by("student__last_name", "student__first_name", "id")
+        )
+        return class_group, term, enrollments
+
+    @staticmethod
+    def _rows(term, enrollments):
+        comments = ReportComment.objects.filter(enrollment__in=enrollments)
+        comments = comments.filter(term=term) if term else comments.filter(term__isnull=True)
+        by_enrollment = dict(comments.values_list("enrollment", "comment"))
+        return [
+            {
+                "enrollment": e.pk,
+                "student": e.student_id,
+                "student_name": e.student.full_name,
+                "comment": by_enrollment.get(e.pk, ""),
+            }
+            for e in enrollments
+        ]
+
+    @extend_schema(parameters=[ReportCardParamsSerializer], responses=ReportCommentRowSerializer(many=True))
+    def get(self, request):
+        params = ReportCardParamsSerializer(data=request.query_params, context={"request": request})
+        params.is_valid(raise_exception=True)
+        _, term, enrollments = self._scope(params.validated_data)
+        return Response(ReportCommentRowSerializer(self._rows(term, enrollments), many=True).data)
+
+    @extend_schema(request=SaveReportCommentsSerializer, responses=ReportCommentRowSerializer(many=True))
+    def post(self, request):
+        params = SaveReportCommentsSerializer(data=request.data, context={"request": request})
+        params.is_valid(raise_exception=True)
+        class_group, term, enrollments = self._scope(params.validated_data)
+        services.save_report_comments(
+            class_group,
+            term,
+            enrollments,
+            [dict(c) for c in params.validated_data["comments"]],
+            request=request,
+        )
+        return Response(ReportCommentRowSerializer(self._rows(term, enrollments), many=True).data)
+
+
+class StudentResultsView(APIView):
+    """A student's results this school year: each term's average, rank and honours band, and the year's."""
+
+    permission_classes = [IsAuthenticated, HasSchoolPermission]
+    required_permissions: dict[str, list[str]] = {"get": VIEW}
+
+    @extend_schema(responses=StudentResultsSerializer)
+    def get(self, request, pk: int):
+        student = Student.objects.filter(school=request.school, pk=pk).first()
+        if student is None:
+            raise NotFound()
+        year = current_year(request.school)
+        enrollment = (
+            student.enrollments.filter(academic_year=year, status=Enrollment.Status.ACTIVE)
+            .select_related("class_group__level", "class_group__academic_year")
+            .first()
+            if year
+            else None
+        )
+        if enrollment is None:
+            empty: dict[str, object] = {
+                "enrollment": None,
+                "class_group": None,
+                "class_name": "",
+                "scale": None,
+                "terms": [],
+            }
+            return Response(StudentResultsSerializer(empty).data)
+        if not can_view_class(request, enrollment.class_group):
+            raise NotFound()
+        return Response(StudentResultsSerializer(student_results(enrollment)).data)
