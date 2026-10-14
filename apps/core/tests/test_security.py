@@ -47,6 +47,9 @@ ANY_MEMBER = {
     ("get", "api/v1/documents/1/"),
     ("delete", "api/v1/documents/1/"),
     ("get", "api/v1/documents/1/download/"),
+    # Background jobs: each user only ever sees the jobs they started.
+    ("get", "api/v1/jobs/1/"),
+    ("get", "api/v1/jobs/1/download/"),
 }
 
 _PARAMS = [

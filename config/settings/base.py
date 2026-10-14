@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Any
 
 import environ
+from celery.schedules import crontab
 from corsheaders.defaults import default_headers
 from django.utils.translation import gettext_lazy as _
 
@@ -172,6 +173,9 @@ CELERY_TASK_ALWAYS_EAGER = env.bool("CELERY_TASK_ALWAYS_EAGER", default=not REDI
 CELERY_TIMEZONE = "UTC"
 CELERY_TASK_ACKS_LATE = True
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_BEAT_SCHEDULE = {
+    "purge-job-results": {"task": "apps.core.tasks.purge_job_results", "schedule": crontab(hour=2, minute=0)},
+}
 
 FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:5173")
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Mon École <no-reply@monecole.local>")

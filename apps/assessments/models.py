@@ -17,6 +17,7 @@ from django.db import models
 from django.db.models import F, Q
 from django.utils.translation import gettext_lazy as _
 
+from apps.core.files import SchoolUploadPath
 from apps.core.models import TenantScopedModel
 
 SCORE_DIGITS = 7
@@ -241,3 +242,45 @@ class ReportComment(TenantScopedModel):
 
     def __str__(self):
         return f"{self.enrollment_id} — {self.term_id or 'year'}"
+
+
+class ReportCard(TenantScopedModel):
+    """A report card as it was issued: the PDF page, kept for good.
+
+    Printing the same card again reuses the stored page; when anything on it has changed (marks reopened and
+    published again, a new comment, attendance corrected...) a new version is issued and the old ones stay.
+    """
+
+    enrollment = models.ForeignKey(
+        "enrollments.Enrollment", on_delete=models.PROTECT, related_name="report_cards"
+    )
+    term = models.ForeignKey(
+        "academics.Term", null=True, blank=True, on_delete=models.PROTECT, related_name="report_cards"
+    )
+    version = models.PositiveSmallIntegerField(default=1)
+    file = models.FileField(upload_to=SchoolUploadPath("report-cards"))
+    size = models.PositiveIntegerField(default=0)
+    # Hash of everything printed on the card (not the print date): same hash = same card.
+    fingerprint = models.CharField(max_length=64)
+    average = models.DecimalField(max_digits=7, decimal_places=3, null=True, blank=True)
+    rank = models.PositiveIntegerField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        verbose_name = "report card"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["enrollment", "term", "version"],
+                condition=Q(term__isnull=False),
+                name="uniq_report_card_term_version",
+            ),
+            models.UniqueConstraint(
+                fields=["enrollment", "version"],
+                condition=Q(term__isnull=True),
+                name="uniq_report_card_year_version",
+            ),
+        ]
+        indexes = [models.Index(fields=["enrollment", "term", "-version"], name="report_card_latest_idx")]
+
+    def __str__(self):
+        return f"{self.enrollment_id} — {self.term_id or 'year'} v{self.version}"

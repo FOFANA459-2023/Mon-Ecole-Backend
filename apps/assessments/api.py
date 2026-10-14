@@ -5,24 +5,26 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import NotFound, ValidationError
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.academics.models import Term
-from apps.academics.scoping import staff_profile
+from apps.academics.models import ClassGroup, Term
+from apps.academics.scoping import sees_all_classes, staff_profile, visible_class_ids
 from apps.academics.services import current_year
 from apps.audit import services as audit
+from apps.core import jobs
+from apps.core.api import JobSerializer
 from apps.core.pdf import pdf_response
 from apps.core.permissions import HasSchoolPermission
 from apps.core.viewsets import TenantModelViewSet
 from apps.enrollments.models import Enrollment
 from apps.people.models import Student
 
-from . import services
-from .models import Assessment, Gradebook, GradeCategory, GradingScale, ReportComment
-from .reportcards import annual_cards, report_cards_pdf, student_results, term_cards
+from . import archive, services
+from .models import Assessment, Gradebook, GradeCategory, GradingScale, ReportCard, ReportComment
+from .reportcards import annual_cards, student_results, term_cards
 from .scoping import can_view_class, visible_gradebooks
 from .selectors import class_results, gradebook_sheet, with_counts
 from .serializers import (
@@ -37,6 +39,8 @@ from .serializers import (
     GradebookUpdateSerializer,
     GradeCategorySerializer,
     GradingScaleSerializer,
+    IssuedReportCardSerializer,
+    ReportCardJobSerializer,
     ReportCardParamsSerializer,
     ReportCommentRowSerializer,
     SaveGradesResultSerializer,
@@ -336,17 +340,110 @@ class ReportCardView(APIView):
             if enrollment is None:
                 raise NotFound()
         cards = term_cards(class_group, term, enrollment) if term else annual_cards(class_group, enrollment)
-        period = slugify(term.name) if term else "annuel"
         who = slugify(enrollment.student.full_name) if enrollment else slugify(class_group.name)
+        content, issued = archive.class_pdf(cards, user=request.user)
+        new = sum(1 for _, _, created in issued if created)
         audit.record(
             "export",
             request=request,
             instance=class_group,
             module="grades",
             summary=f"Report cards printed: {class_group.name}, {term.name if term else 'year'}"
-            + (f", {enrollment.student.full_name}" if enrollment else f" ({len(cards['cards'])} students)"),
+            + (f", {enrollment.student.full_name}" if enrollment else f" ({len(issued)} students)")
+            + (f", {new} new" if new else ""),
         )
-        return pdf_response(report_cards_pdf(cards), f"bulletin-{who}-{period}.pdf")
+        return pdf_response(content, f"bulletin-{who}-{archive.period_slug(term)}.pdf")
+
+
+class ReportCardJobView(APIView):
+    """Report cards of many classes at once, made in the background: a class, a level or the whole year.
+
+    Answers with the job to follow at /jobs/{id}/; its result is one PDF per class (in a ZIP when there are
+    several). A teacher may only print the class they lead.
+    """
+
+    permission_classes = [IsAuthenticated, HasSchoolPermission]
+    required_permissions: dict[str, list[str]] = {"post": ["reportcards.generate"]}
+
+    @extend_schema(request=ReportCardJobSerializer, responses={202: JobSerializer})
+    def post(self, request):
+        params = ReportCardJobSerializer(data=request.data, context={"request": request})
+        params.is_valid(raise_exception=True)
+        data = params.validated_data
+        class_group, term = data.get("class_group"), data.get("term")
+        if class_group is not None:
+            if not can_view_class(request, class_group):
+                raise NotFound()
+            classes = [class_group.pk]
+        else:
+            if not sees_all_classes(request):
+                raise PermissionDenied(_("Only staff who see every class can print several classes at once."))
+            queryset = ClassGroup.objects.filter(
+                school=request.school, academic_year=data["academic_year"], status=ClassGroup.Status.ACTIVE
+            )
+            if data.get("level"):
+                queryset = queryset.filter(level=data["level"])
+            classes = list(queryset.values_list("pk", flat=True))
+        if not classes:
+            raise ValidationError({"detail": _("There is no class to print.")})
+        job = jobs.start(
+            "report_cards",
+            request=request,
+            params={"class_groups": classes, "term": term.pk if term else None},
+            total=archive.count_students(classes),
+        )
+        return Response(JobSerializer(job).data, status=status.HTTP_202_ACCEPTED)
+
+
+@extend_schema_view(
+    list=extend_schema(parameters=[OpenApiParameter("student", OpenApiTypes.INT, required=True)])
+)
+class IssuedReportCardViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
+    """The report cards issued to a student, every version, newest first; and each one's PDF."""
+
+    permission_classes = [IsAuthenticated, HasSchoolPermission]
+    serializer_class = IssuedReportCardSerializer
+    pagination_class = None
+    required_permissions: dict[str, list[str]] = {"*": VIEW}
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return ReportCard.objects.none()
+        queryset = ReportCard.objects.filter(school=self.request.school).select_related(
+            "term",
+            "created_by",
+            "enrollment__class_group",
+            "enrollment__academic_year",
+            "enrollment__student",
+        )
+        class_ids = visible_class_ids(self.request)
+        if class_ids is not None:
+            # Teachers: the cards of the class they lead.
+            staff = staff_profile(self.request)
+            if staff is None:
+                return queryset.none()
+            queryset = queryset.filter(enrollment__class_group__class_teacher=staff)
+        return queryset
+
+    def list(self, request, *args, **kwargs):
+        student = request.query_params.get("student", "")
+        if not student.isdigit():
+            raise ValidationError({"student": [_("Choose a student.")]})
+        cards = list(self.get_queryset().filter(enrollment__student_id=int(student)))
+        latest: dict[tuple[int, int | None], int] = {}
+        for card in cards:
+            key = (card.enrollment_id, card.term_id)
+            latest[key] = max(latest.get(key, 0), card.version)
+        for card in cards:
+            card.is_latest = card.version == latest[(card.enrollment_id, card.term_id)]
+        return Response(self.get_serializer(cards, many=True).data)
+
+    @extend_schema(responses={(200, "application/pdf"): bytes})
+    @action(detail=True, methods=["get"])
+    def download(self, request, pk=None):
+        card = self.get_object()
+        with card.file.open("rb") as stored:
+            return pdf_response(stored.read(), archive.report_card_filename(card))
 
 
 class ReportCommentsView(APIView):

@@ -3610,6 +3610,113 @@ paths:
               schema:
                 $ref: '#/components/schemas/GenerateInvoicesResult'
           description: ''
+  /api/v1/issued-report-cards/:
+    get:
+      operationId: issued_report_cards_list
+      description: The report cards issued to a student, every version, newest first;
+        and each one's PDF.
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: student
+        schema:
+          type: integer
+        required: true
+      tags:
+      - issued-report-cards
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/IssuedReportCard'
+          description: ''
+  /api/v1/issued-report-cards/{id}/download/:
+    get:
+      operationId: issued_report_cards_download_retrieve
+      description: The report cards issued to a student, every version, newest first;
+        and each one's PDF.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this report card.
+        required: true
+      tags:
+      - issued-report-cards
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/jobs/{id}/:
+    get:
+      operationId: jobs_retrieve
+      description: 'A background job started by the signed-in user: its progress,
+        then its result file.'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this job.
+        required: true
+      tags:
+      - jobs
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+          description: ''
+  /api/v1/jobs/{id}/download/:
+    get:
+      operationId: jobs_download_retrieve
+      description: 'A background job started by the signed-in user: its progress,
+        then its result file.'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this job.
+        required: true
+      tags:
+      - jobs
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+          description: ''
   /api/v1/levels/:
     get:
       operationId: levels_list
@@ -4390,6 +4497,37 @@ paths:
               schema:
                 type: string
                 format: binary
+          description: ''
+  /api/v1/report-cards/jobs/:
+    post:
+      operationId: report_cards_jobs_create
+      description: |-
+        Report cards of many classes at once, made in the background: a class, a level or the whole year.
+
+        Answers with the job to follow at /jobs/{id}/; its result is one PDF per class (in a ZIP when there are
+        several). A teacher may only print the class they lead.
+      tags:
+      - report-cards
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportCardJobRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ReportCardJobRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ReportCardJobRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
           description: ''
   /api/v1/report-comments/:
     get:
@@ -8800,6 +8938,126 @@ components:
       description: |-
         * `issued` - Issued
         * `cancelled` - Cancelled
+    IssuedReportCard:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        enrollment:
+          type: integer
+        class_name:
+          type: string
+        academic_year_name:
+          type: string
+        term:
+          type: integer
+          nullable: true
+        term_name:
+          type: string
+          readOnly: true
+        version:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          default: 1
+        is_latest:
+          type: boolean
+          readOnly: true
+        average:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,3})?$
+          nullable: true
+        rank:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+          nullable: true
+        size:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        issued_by_name:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - academic_year_name
+      - average
+      - class_name
+      - created_at
+      - enrollment
+      - id
+      - is_latest
+      - issued_by_name
+      - term_name
+    Job:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        kind:
+          type: string
+          maxLength: 40
+        status:
+          $ref: '#/components/schemas/JobStatusEnum'
+        total:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        done:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        outcome: {}
+        error:
+          type: string
+          maxLength: 500
+        result_name:
+          type: string
+          maxLength: 200
+        has_result:
+          type: boolean
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        finished_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - created_at
+      - has_result
+      - id
+      - kind
+    JobStatusEnum:
+      enum:
+      - queued
+      - running
+      - done
+      - failed
+      type: string
+      description: |-
+        * `queued` - Queued
+        * `running` - Running
+        * `done` - Done
+        * `failed` - Failed
     KindEnum:
       enum:
       - new
@@ -11041,6 +11299,25 @@ components:
         * `mother` - Mother
         * `guardian` - Guardian
         * `other` - Other
+    ReportCardJobRequest:
+      type: object
+      description: 'Report cards for many classes at once: one class, a level or (neither)
+        the whole school year.'
+      properties:
+        academic_year:
+          type: integer
+        term:
+          type: integer
+          nullable: true
+          description: Leave out for the year.
+        level:
+          type: integer
+          nullable: true
+        class_group:
+          type: integer
+          nullable: true
+      required:
+      - academic_year
     ReportCommentRow:
       type: object
       properties:
