@@ -18,11 +18,6 @@ from .conftest import URL, gradebook_of, save
 pytestmark = pytest.mark.django_db
 
 
-@pytest.fixture(autouse=True)
-def _media(settings, tmp_path):
-    settings.MEDIA_ROOT = tmp_path
-
-
 @pytest.fixture
 def published(setup, term, maths_marked, school, make_member, client_for):
     director = client_for(make_member(school, "director"), school)

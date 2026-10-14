@@ -19,6 +19,12 @@ def _clear_cache():
     cache.clear()
 
 
+@pytest.fixture(autouse=True)
+def _media(settings, tmp_path):
+    """Files a test writes (uploads, issued report cards, job results) go to a temporary folder."""
+    settings.MEDIA_ROOT = tmp_path
+
+
 @pytest.fixture
 def school(db):
     return create_school(name="École Alpha", code="alpha")
