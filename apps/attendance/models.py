@@ -66,6 +66,48 @@ class AttendanceRecord(TenantScopedModel):
         return f"{self.enrollment_id}: {self.status}"
 
 
+class AbsenceAlert(TenantScopedModel):
+    """High absenteeism: a student reached the school's number of unexcused absences within its period.
+
+    Raised by the nightly check and open until someone follows it up (a call to the family, a meeting...).
+    Absences counted for an alert that was followed up are not counted again. If registers are corrected
+    and the absences no longer reach the number, an open alert is cleared.
+    """
+
+    class AlertStatus(models.TextChoices):
+        OPEN = "open", _("To follow up")
+        FOLLOWED_UP = "followed_up", _("Followed up")
+        CLEARED = "cleared", _("No longer applies")
+
+    enrollment = models.ForeignKey(
+        "enrollments.Enrollment", on_delete=models.CASCADE, related_name="absence_alerts"
+    )
+    status = models.CharField(max_length=12, choices=AlertStatus.choices, default=AlertStatus.OPEN)
+    raised_on = models.DateField()
+    # The unexcused absences counted, from `since` to `last_absence`.
+    absences = models.PositiveSmallIntegerField()
+    since = models.DateField()
+    last_absence = models.DateField()
+    closed_on = models.DateField(null=True, blank=True)
+    closed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    note = models.CharField(max_length=255, blank=True, help_text="What was done to follow it up.")
+
+    class Meta:
+        ordering = ["-raised_on", "-absences", "id"]
+        verbose_name = "absence alert"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["enrollment"], condition=Q(status="open"), name="uniq_open_absence_alert"
+            )
+        ]
+        indexes = [models.Index(fields=["school", "status"], name="absence_alert_status_idx")]
+
+    def __str__(self):
+        return f"{self.enrollment_id}: {self.absences} ({self.status})"
+
+
 class StaffAttendance(TenantScopedModel):
     """One staff member on one day."""
 

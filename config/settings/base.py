@@ -175,6 +175,11 @@ CELERY_TASK_ACKS_LATE = True
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_BEAT_SCHEDULE = {
     "purge-job-results": {"task": "apps.core.tasks.purge_job_results", "schedule": crontab(hour=2, minute=0)},
+    # After the school day in Guinea and Liberia (UTC+0).
+    "check-absenteeism": {
+        "task": "apps.attendance.tasks.check_absenteeism",
+        "schedule": crontab(hour=19, minute=0),
+    },
 }
 
 FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:5173")

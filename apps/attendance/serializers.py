@@ -6,7 +6,7 @@ from rest_framework import serializers
 from apps.academics.models import AcademicYear, ClassGroup
 from apps.core.serializers import TenantPrimaryKeyRelatedField
 
-from .models import StaffAttendance, Status
+from .models import AbsenceAlert, StaffAttendance, Status
 
 
 class DayParamsSerializer(serializers.Serializer):
@@ -184,3 +184,39 @@ def today_or(value, school) -> date:
     from .services import school_today
 
     return value or school_today(school)
+
+
+class AbsenceAlertSerializer(serializers.ModelSerializer):
+    student = serializers.IntegerField(source="enrollment.student_id")
+    student_name = serializers.CharField(source="enrollment.student.full_name")
+    student_number = serializers.CharField(source="enrollment.student.student_number")
+    class_group = serializers.IntegerField(source="enrollment.class_group_id")
+    class_name = serializers.CharField(source="enrollment.class_group.name")
+    closed_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = AbsenceAlert
+        fields = [
+            "id",
+            "enrollment",
+            "student",
+            "student_name",
+            "student_number",
+            "class_group",
+            "class_name",
+            "status",
+            "raised_on",
+            "absences",
+            "since",
+            "last_absence",
+            "closed_on",
+            "closed_by_name",
+            "note",
+        ]
+
+    def get_closed_by_name(self, obj) -> str:
+        return obj.closed_by.full_name if obj.closed_by else ""
+
+
+class FollowUpSerializer(serializers.Serializer):
+    note = serializers.CharField(max_length=255, help_text="What was done: call to the family, meeting...")

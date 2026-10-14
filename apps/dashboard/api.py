@@ -10,6 +10,7 @@ from rest_framework.views import APIView
 from apps.academics.models import AcademicYear, ClassGroup
 from apps.academics.scoping import visible_class_ids
 from apps.academics.services import current_year
+from apps.attendance.models import AbsenceAlert
 from apps.core.permissions import HasSchoolPermission
 from apps.enrollments.models import Enrollment
 from apps.people.models import StaffMember
@@ -83,6 +84,13 @@ class DashboardSummaryView(APIView):
             if "attendance.view" in request.permission_codes
             else None
         )
+        absence_alerts = (
+            AbsenceAlert.objects.filter(
+                school=school, status=AbsenceAlert.AlertStatus.OPEN, enrollment__class_group__in=classes
+            ).count()
+            if "attendance.view" in request.permission_codes
+            else None
+        )
 
         return Response(
             {
@@ -97,6 +105,8 @@ class DashboardSummaryView(APIView):
                 "staff": staff.count(),
                 "new_enrollments_30d": enrollments.filter(enrollment_date__gte=since).count(),
                 "attendance_today": attendance,
+                # High absenteeism to follow up (attendance.alerts), in the classes counted here.
+                "absence_alerts": absence_alerts,
                 "by_level": [
                     {
                         "level_id": row["class_group__level_id"],

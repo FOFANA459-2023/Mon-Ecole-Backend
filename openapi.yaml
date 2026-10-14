@@ -355,6 +355,98 @@ paths:
                 items:
                   $ref: '#/components/schemas/AbsenceRow'
           description: ''
+  /api/v1/attendance/alerts/:
+    get:
+      operationId: attendance_alerts_list
+      description: |-
+        High-absenteeism alerts of the classes the user sees: open ones by default, newest first.
+
+        Raised every evening from the registers (see attendance.alerts); `follow-up` closes one with a note.
+      parameters:
+      - in: query
+        name: class_group
+        schema:
+          type: integer
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - cleared
+          - followed_up
+          - open
+      tags:
+      - attendance
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAbsenceAlertList'
+          description: ''
+  /api/v1/attendance/alerts/{id}/follow-up/:
+    post:
+      operationId: attendance_alerts_follow_up_create
+      description: |-
+        High-absenteeism alerts of the classes the user sees: open ones by default, newest first.
+
+        Raised every evening from the registers (see attendance.alerts); `follow-up` closes one with a note.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this absence alert.
+        required: true
+      tags:
+      - attendance
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FollowUpRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FollowUpRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FollowUpRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AbsenceAlert'
+          description: ''
   /api/v1/attendance/class-month/:
     get:
       operationId: attendance_class_month_retrieve
@@ -6479,6 +6571,74 @@ paths:
           description: No response body
 components:
   schemas:
+    AbsenceAlert:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        enrollment:
+          type: integer
+        student:
+          type: integer
+        student_name:
+          type: string
+        student_number:
+          type: string
+        class_group:
+          type: integer
+        class_name:
+          type: string
+        status:
+          $ref: '#/components/schemas/AbsenceAlertStatusEnum'
+        raised_on:
+          type: string
+          format: date
+        absences:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        since:
+          type: string
+          format: date
+        last_absence:
+          type: string
+          format: date
+        closed_on:
+          type: string
+          format: date
+          nullable: true
+        closed_by_name:
+          type: string
+          readOnly: true
+        note:
+          type: string
+          description: What was done to follow it up.
+          maxLength: 255
+      required:
+      - absences
+      - class_group
+      - class_name
+      - closed_by_name
+      - enrollment
+      - id
+      - last_absence
+      - raised_on
+      - since
+      - student
+      - student_name
+      - student_number
+    AbsenceAlertStatusEnum:
+      enum:
+      - open
+      - followed_up
+      - cleared
+      type: string
+      description: |-
+        * `open` - To follow up
+        * `followed_up` - Followed up
+        * `cleared` - No longer applies
     AbsenceRow:
       type: object
       properties:
@@ -7989,6 +8149,16 @@ components:
       - amount
       - category
       - level
+    FollowUpRequest:
+      type: object
+      properties:
+        note:
+          type: string
+          minLength: 1
+          description: 'What was done: call to the family, meeting...'
+          maxLength: 255
+      required:
+      - note
     GenderEnum:
       enum:
       - M
@@ -9607,6 +9777,29 @@ components:
         * `student` - Student
         * `staff` - Staff member
         * `school` - School
+    PaginatedAbsenceAlertList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AbsenceAlert'
     PaginatedAuditLogList:
       type: object
       required:
@@ -11735,6 +11928,16 @@ components:
           maxLength: 10
         ai_enabled:
           type: boolean
+        absence_alert_threshold:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        absence_alert_days:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
     SchoolSettingsRequest:
       type: object
       properties:
@@ -11761,6 +11964,16 @@ components:
           maxLength: 10
         ai_enabled:
           type: boolean
+        absence_alert_threshold:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        absence_alert_days:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
     SchoolStatusEnum:
       enum:
       - active

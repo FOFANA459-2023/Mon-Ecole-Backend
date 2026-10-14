@@ -48,6 +48,10 @@ class SchoolSettings(TimeStampedModel):
     invoice_prefix = models.CharField(max_length=10, default="INV")
     receipt_prefix = models.CharField(max_length=10, default="REC")
     ai_enabled = models.BooleanField(default=False)
+    # High absenteeism: an alert is raised for a student with this many unexcused absences within the
+    # last `absence_alert_days` days (0 = no alerts).
+    absence_alert_threshold = models.PositiveSmallIntegerField(default=3)
+    absence_alert_days = models.PositiveSmallIntegerField(default=30)
 
     class Meta:
         verbose_name_plural = "school settings"
