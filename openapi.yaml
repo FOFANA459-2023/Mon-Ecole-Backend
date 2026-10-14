@@ -4593,6 +4593,72 @@ paths:
                 items:
                   $ref: '#/components/schemas/ReportCommentRow'
           description: ''
+  /api/v1/reports/academic/{key}/:
+    get:
+      operationId: reports_academic_retrieve
+      description: |-
+        Academic reports: grades (one class), ranking and subject results (a class, a level or the school).
+
+        Published marks only; a term, or the year when `term` is left out. Teachers reach the class they lead;
+        a level or the whole school needs access to every class. `export=pdf|xlsx|csv` needs reports.export.
+      parameters:
+      - in: query
+        name: academic_year
+        schema:
+          type: integer
+          nullable: true
+        description: Defaults to the term's year, else the class's, else the current
+          year.
+      - in: query
+        name: class_group
+        schema:
+          type: integer
+          nullable: true
+      - in: query
+        name: export
+        schema:
+          enum:
+          - pdf
+          - xlsx
+          - csv
+          - ''
+          type: string
+        description: |-
+          * `pdf` - pdf
+          * `xlsx` - xlsx
+          * `csv` - csv
+      - in: path
+        name: key
+        schema:
+          type: string
+          enum:
+          - grades
+          - ranking
+          - subjects
+        required: true
+      - in: query
+        name: level
+        schema:
+          type: integer
+          nullable: true
+      - in: query
+        name: term
+        schema:
+          type: integer
+          nullable: true
+        description: Leave out for the year.
+      tags:
+      - reports
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: The report (JSON) or the exported file.
   /api/v1/reports/finance/{key}/:
     get:
       operationId: reports_finance_retrieve

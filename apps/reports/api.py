@@ -11,8 +11,10 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.academics.models import AcademicYear, ClassGroup
+from apps.academics.models import AcademicYear, ClassGroup, Level, Term
+from apps.academics.scoping import sees_all_classes
 from apps.academics.services import current_year
+from apps.assessments.scoping import can_view_class
 from apps.audit import services as audit
 from apps.cashregister.models import CashRegister
 from apps.core.pdf import pdf_response
@@ -20,6 +22,7 @@ from apps.core.permissions import HasSchoolPermission
 from apps.core.serializers import TenantPrimaryKeyRelatedField
 from apps.finance.models import Expense, Payment
 
+from . import academic
 from .finance import BUILDERS, Params
 from .render import to_csv, to_json, to_pdf, to_xlsx
 
@@ -107,13 +110,100 @@ class FinanceReportView(APIView):
             new={"report": key, "format": export, "from": str(data["date_from"]), "to": str(data["date_to"])},
         )
         filename = f"{key}-{data['date_from']}-{data['date_to']}.{export}"
-        if export == "pdf":
-            return pdf_response(to_pdf(report, school, language, request.user.full_name), filename)
-        content = (
-            to_xlsx(report, school.currency)
-            if export == "xlsx"
-            else to_csv(report, school.currency, language)
+        return _download(report, school, language, request.user, export, filename)
+
+
+def _download(report, school, language: str, user, export: str, filename: str):
+    if export == "pdf":
+        return pdf_response(to_pdf(report, school, language, user.full_name), filename)
+    content = (
+        to_xlsx(report, school.currency) if export == "xlsx" else to_csv(report, school.currency, language)
+    )
+    response = HttpResponse(content, content_type=EXPORTS[export])
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
+
+class AcademicReportParamsSerializer(serializers.Serializer):
+    academic_year = TenantPrimaryKeyRelatedField(
+        queryset=AcademicYear.objects.all(),
+        required=False,
+        allow_null=True,
+        help_text="Defaults to the term's year, else the class's, else the current year.",
+    )
+    term = TenantPrimaryKeyRelatedField(
+        queryset=Term.objects.all(), required=False, allow_null=True, help_text="Leave out for the year."
+    )
+    level = TenantPrimaryKeyRelatedField(queryset=Level.objects.all(), required=False, allow_null=True)
+    class_group = TenantPrimaryKeyRelatedField(
+        queryset=ClassGroup.objects.all(), required=False, allow_null=True
+    )
+    export = serializers.ChoiceField(choices=["pdf", "xlsx", "csv"], required=False, allow_blank=True)
+
+    def validate(self, attrs):
+        term, class_group = attrs.get("term"), attrs.get("class_group")
+        year = attrs.get("academic_year") or (term.academic_year if term else None)
+        year = year or (class_group.academic_year if class_group else None)
+        year = year or current_year(self.context["request"].school)
+        if year is None:
+            raise serializers.ValidationError({"academic_year": [_("Choose a school year.")]})
+        if term is not None and term.academic_year_id != year.pk:
+            raise serializers.ValidationError({"term": [_("Choose a term of this academic year.")]})
+        if class_group is not None and class_group.academic_year_id != year.pk:
+            raise serializers.ValidationError({"class_group": [_("Choose a class of this academic year.")]})
+        attrs["academic_year"] = year
+        return attrs
+
+
+class AcademicReportView(APIView):
+    """Academic reports: grades (one class), ranking and subject results (a class, a level or the school).
+
+    Published marks only; a term, or the year when `term` is left out. Teachers reach the class they lead;
+    a level or the whole school needs access to every class. `export=pdf|xlsx|csv` needs reports.export.
+    """
+
+    permission_classes = [IsAuthenticated, HasSchoolPermission]
+    required_permissions: dict[str, list[str]] = {"get": ["grades.view"]}
+
+    @extend_schema(
+        parameters=[
+            AcademicReportParamsSerializer,
+            OpenApiParameter("key", OpenApiTypes.STR, OpenApiParameter.PATH, enum=list(academic.BUILDERS)),
+        ],
+        responses={
+            200: OpenApiResponse(OpenApiTypes.OBJECT, description="The report (JSON) or the exported file."),
+        },
+    )
+    def get(self, request, key: str):
+        builder = academic.BUILDERS.get(key)
+        if builder is None:
+            raise NotFound()
+        serializer = AcademicReportParamsSerializer(data=request.query_params, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        export = data.pop("export", "") or ""
+        class_group = data.get("class_group")
+        if key in academic.CLASS_ONLY and class_group is None:
+            raise serializers.ValidationError({"class_group": [_("Choose a class.")]})
+        if class_group is not None:
+            if not can_view_class(request, class_group):
+                raise NotFound()
+        elif not sees_all_classes(request):
+            raise PermissionDenied(_("Choose the class you lead."))
+        if export and "reports.export" not in request.permission_codes:
+            raise PermissionDenied(_("You cannot export reports."))
+        school = request.school
+        language = request.user.language if request.user.language in ("fr", "en") else school.default_language
+        report = builder(school, academic.Params(**data), language)
+        if not export:
+            return Response(to_json(report, school.currency))
+        audit.record(
+            "export",
+            request=request,
+            module="grades",
+            entity_type="report",
+            entity_id=key,
+            summary=f"{report.title} ({export}): {report.subtitle}",
+            new={"report": key, "format": export},
         )
-        response = HttpResponse(content, content_type=EXPORTS[export])
-        response["Content-Disposition"] = f'attachment; filename="{filename}"'
-        return response
+        return _download(report, school, language, request.user, export, f"{key}.{export}")
