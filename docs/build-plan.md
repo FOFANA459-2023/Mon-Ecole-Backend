@@ -265,7 +265,7 @@ All arithmetic in `Decimal`.
 
 **Notifications:** events (payment recorded, overdue, absence, grades published, announcement) create in-app notifications; only essential messages also go by email through EmailJS (password reset, receipts, invitations), queued in Celery with a monthly quota counter and alert at 80 % of the EmailJS limit.
 
-**Backups:** Supabase daily backups (7 days) + Celery beat `pg_dump` every 4 hours to a versioned, encrypted S3 bucket (30-day lifecycle) + monthly restore drill into staging (runbook in `docs/runbooks/restore.md`). **Supabase PITR ($100/month) is switched on before the finance module goes live.** In-app "Backups" screen lists backup history and status for admins.
+**Backups:** Supabase daily backups (7 days) + Celery beat `pg_dump` every 4 hours to a versioned, encrypted S3 bucket (30-day lifecycle) + monthly restore drill into staging (runbook in `docs/runbooks/restore.md`). **Supabase PITR ($100/month) is switched on before the finance module goes live.** In-app "Backups" screen lists backup history and status for admins. Built 2026-10-15 (`apps.backups`): `Backup(kind automatic/manual, status running/done/failed/expired, file, size, engine)`; Celery beat `database-backup` every `BACKUP_EVERY_HOURS` (4) runs `pg_dump --format=custom` against `BACKUP_DATABASE_URL` (Supabase session pooler/direct — the transaction pooler cannot) into the private media bucket under `backups/` (SSE-S3; the bucket is not versioned yet), files deleted after `BACKUP_KEEP_DAYS` (30). Platform → Backups (owner only): history, back up now, download (audited). School settings show directors the last successful backup. Restore and disaster recovery: `docs/runbooks/restore.md`.
 
 ---
 

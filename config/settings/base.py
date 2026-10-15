@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "apps.documents",
     "apps.administration",
     "apps.notifications",
+    "apps.backups",
     "apps.search",
     "apps.dashboard",
     "apps.imports",
@@ -186,6 +187,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.notifications.tasks.morning_round",
         "schedule": crontab(hour=6, minute=30),
     },
+    "database-backup": {
+        "task": "apps.backups.tasks.automatic_backup",
+        "schedule": crontab(minute=15, hour=f"*/{env.int('BACKUP_EVERY_HOURS', default=4)}"),
+    },
     "check-absenteeism": {
         "task": "apps.attendance.tasks.check_absenteeism",
         "schedule": crontab(hour=19, minute=0),
@@ -205,6 +210,12 @@ EMAILJS_PUBLIC_KEY = env("EMAILJS_PUBLIC_KEY", default="")
 EMAILJS_PRIVATE_KEY = env("EMAILJS_PRIVATE_KEY", default="")
 # Emails allowed per month by the EmailJS plan (0 = no limit checked). Over it, emails are skipped and logged.
 EMAILJS_MONTHLY_LIMIT = env.int("EMAILJS_MONTHLY_LIMIT", default=0)
+
+# Database backups (apps.backups): every BACKUP_EVERY_HOURS hours, files kept BACKUP_KEEP_DAYS days.
+# BACKUP_DATABASE_URL: a connection pg_dump can use (Supabase: the session pooler or the direct port 5432).
+BACKUP_DATABASE_URL = env("BACKUP_DATABASE_URL", default=env("DATABASE_URL", default=""))
+BACKUP_EVERY_HOURS = env.int("BACKUP_EVERY_HOURS", default=4)
+BACKUP_KEEP_DAYS = env.int("BACKUP_KEEP_DAYS", default=30)
 
 ADMIN_URL = env("DJANGO_ADMIN_URL", default="admin/")
 API_DOCS_ENABLED = env.bool("API_DOCS_ENABLED", default=DEBUG)

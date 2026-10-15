@@ -1034,6 +1034,22 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/backup-status/:
+    get:
+      operationId: backup_status_retrieve
+      description: When the platform was last backed up (school settings show it to
+        those who manage settings).
+      tags:
+      - backup-status
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackupStatus'
+          description: ''
   /api/v1/calendar-events/:
     get:
       operationId: calendar_events_list
@@ -4903,6 +4919,86 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/platform/backups/:
+    get:
+      operationId: platform_backups_list
+      description: 'Backups of the whole platform (every school): history, "back up
+        now", and download. Owner only.'
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - platform
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedBackupList'
+          description: ''
+    post:
+      operationId: platform_backups_create
+      description: 'Backups of the whole platform (every school): history, "back up
+        now", and download. Owner only.'
+      tags:
+      - platform
+      security:
+      - jwtAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Backup'
+          description: ''
+  /api/v1/platform/backups/{id}/download/:
+    get:
+      operationId: platform_backups_download_retrieve
+      description: 'Backups of the whole platform (every school): history, "back up
+        now", and download. Owner only.'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this backup.
+        required: true
+      tags:
+      - platform
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+          description: ''
   /api/v1/platform/schools/:
     get:
       operationId: platform_schools_list
@@ -7748,6 +7844,90 @@ components:
       - user
       - user_agent
       - user_name
+    Backup:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        kind:
+          $ref: '#/components/schemas/BackupKindEnum'
+        status:
+          $ref: '#/components/schemas/BackupStatusEnum'
+        engine:
+          type: string
+          description: postgresql or sqlite
+          maxLength: 20
+        size:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        error:
+          type: string
+          maxLength: 500
+        started_at:
+          type: string
+          format: date-time
+          readOnly: true
+        finished_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_by_name:
+          type: string
+          readOnly: true
+        has_file:
+          type: boolean
+          readOnly: true
+      required:
+      - created_by_name
+      - has_file
+      - id
+      - started_at
+    BackupKindEnum:
+      enum:
+      - automatic
+      - manual
+      type: string
+      description: |-
+        * `automatic` - Automatic
+        * `manual` - Manual
+    BackupStatus:
+      type: object
+      properties:
+        last_success_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_status:
+          type: string
+        last_attempt_at:
+          type: string
+          format: date-time
+          nullable: true
+        keep_days:
+          type: integer
+        every_hours:
+          type: integer
+      required:
+      - every_hours
+      - keep_days
+      - last_attempt_at
+      - last_status
+      - last_success_at
+    BackupStatusEnum:
+      enum:
+      - running
+      - done
+      - failed
+      - expired
+      type: string
+      description: |-
+        * `running` - Running
+        * `done` - Done
+        * `failed` - Failed
+        * `expired` - Expired (file deleted)
     BlankEnum:
       enum:
       - ''
@@ -10871,6 +11051,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AuditLog'
+    PaginatedBackupList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Backup'
     PaginatedCashSessionList:
       type: object
       required:
