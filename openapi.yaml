@@ -7440,7 +7440,9 @@ components:
         class_name:
           type: string
         status:
-          $ref: '#/components/schemas/AbsenceAlertStatusEnum'
+          allOf:
+          - $ref: '#/components/schemas/AbsenceAlertStatusEnum'
+          default: open
         raised_on:
           type: string
           format: date
@@ -8174,6 +8176,7 @@ components:
           allOf:
           - $ref: '#/components/schemas/OpenClosedStatusEnum'
           readOnly: true
+          default: open
         opened_at:
           type: string
           format: date-time
@@ -8271,6 +8274,7 @@ components:
           allOf:
           - $ref: '#/components/schemas/OpenClosedStatusEnum'
           readOnly: true
+          default: open
         opened_at:
           type: string
           format: date-time
