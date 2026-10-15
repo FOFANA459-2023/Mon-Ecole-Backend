@@ -52,6 +52,13 @@ class SchoolSettings(TimeStampedModel):
     # last `absence_alert_days` days (0 = no alerts).
     absence_alert_threshold = models.PositiveSmallIntegerField(default=3)
     absence_alert_days = models.PositiveSmallIntegerField(default=30)
+    # Emails to parents (their financial / main contact), off until the school turns them on.
+    parent_email_payments = models.BooleanField(
+        default=False, help_text="Payment reminders and overdue notices."
+    )
+    parent_email_absences = models.BooleanField(
+        default=False, help_text="An email the evening of an absence."
+    )
 
     class Meta:
         verbose_name_plural = "school settings"

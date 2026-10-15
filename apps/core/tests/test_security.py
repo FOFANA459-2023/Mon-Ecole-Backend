@@ -54,6 +54,13 @@ ANY_MEMBER = {
     ("get", "api/v1/announcements/1/"),
     ("get", "api/v1/calendar-events/"),
     ("get", "api/v1/calendar-events/1/"),
+    # Notifications: each user only ever sees and changes their own.
+    ("get", "api/v1/notifications/"),
+    ("get", "api/v1/notifications/unread-count/"),
+    ("post", "api/v1/notifications/1/read/"),
+    ("post", "api/v1/notifications/read-all/"),
+    ("get", "api/v1/notifications/preferences/"),
+    ("patch", "api/v1/notifications/preferences/"),
     # Background jobs: each user only ever sees the jobs they started.
     ("get", "api/v1/jobs/1/"),
     ("get", "api/v1/jobs/1/download/"),

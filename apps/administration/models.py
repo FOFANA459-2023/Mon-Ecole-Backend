@@ -50,6 +50,8 @@ class Announcement(TenantScopedModel):
     publish_at = models.DateTimeField(default=timezone.now)
     expires_on = models.DateField(null=True, blank=True)
     pinned = models.BooleanField(default=False)
+    # When its audience was notified (once, when the publication time has come).
+    notified_at = models.DateTimeField(null=True, blank=True, editable=False)
     updated_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
     )
@@ -84,6 +86,8 @@ class CalendarEvent(TenantScopedModel):
     levels = models.ManyToManyField(
         "academics.Level", blank=True, related_name="calendar_events", help_text="Empty = the whole school."
     )
+    # When the teachers were reminded of this exam (a week before).
+    reminded_at = models.DateTimeField(null=True, blank=True, editable=False)
 
     class Meta:
         ordering = ["start_date", F("start_time").asc(nulls_first=True), "id"]

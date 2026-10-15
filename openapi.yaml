@@ -4454,6 +4454,206 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/notifications/:
+    get:
+      operationId: notifications_list
+      description: The signed-in user's notifications in the current school, newest
+        first.
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: unread
+        schema:
+          type: boolean
+        description: Unread only.
+      tags:
+      - notifications
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedNotificationList'
+          description: ''
+  /api/v1/notifications/{id}/read/:
+    post:
+      operationId: notifications_read_create
+      description: The signed-in user's notifications in the current school, newest
+        first.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this notification.
+        required: true
+      tags:
+      - notifications
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+          description: ''
+  /api/v1/notifications/preferences/:
+    get:
+      operationId: notifications_preferences_list
+      description: 'What the user wants for each kind of notification: in the app,
+        by email.'
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - notifications
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedPreferenceList'
+          description: ''
+    patch:
+      operationId: notifications_preferences_partial_update
+      description: 'What the user wants for each kind of notification: in the app,
+        by email.'
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - notifications
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/PreferenceRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/PreferenceRequest'
+          multipart/form-data:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/PreferenceRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedPreferenceList'
+          description: ''
+  /api/v1/notifications/read-all/:
+    post:
+      operationId: notifications_read_all_create
+      description: The signed-in user's notifications in the current school, newest
+        first.
+      tags:
+      - notifications
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnreadCount'
+          description: ''
+  /api/v1/notifications/unread-count/:
+    get:
+      operationId: notifications_unread_count_retrieve
+      description: The signed-in user's notifications in the current school, newest
+        first.
+      tags:
+      - notifications
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnreadCount'
+          description: ''
   /api/v1/payments/:
     get:
       operationId: payments_list
@@ -10328,6 +10528,57 @@ components:
       - first_name
       - gender
       - last_name
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        kind:
+          $ref: '#/components/schemas/NotificationKindEnum'
+        title:
+          type: string
+          maxLength: 200
+        body:
+          type: string
+          maxLength: 500
+        link:
+          type: string
+          description: A page of the web app, e.g. /assessments/12.
+          maxLength: 200
+        read_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - kind
+      - title
+    NotificationKindEnum:
+      enum:
+      - announcement
+      - announcement_important
+      - grades_submitted
+      - grades_sent_back
+      - grades_published
+      - absence_alert
+      - payments_overdue
+      - exam_soon
+      type: string
+      description: |-
+        * `announcement` - Announcements
+        * `announcement_important` - Important announcements
+        * `grades_submitted` - Marks submitted for review
+        * `grades_sent_back` - Marks sent back or reopened
+        * `grades_published` - Marks published
+        * `absence_alert` - Students absent too often
+        * `payments_overdue` - Payments overdue
+        * `exam_soon` - Upcoming exams
     NullEnum:
       enum:
       - null
@@ -10720,6 +10971,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Member'
+    PaginatedNotificationList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notification'
     PaginatedPaymentListList:
       type: object
       required:
@@ -10766,6 +11040,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/PlatformSchool'
+    PaginatedPreferenceList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Preference'
     PaginatedRefundList:
       type: object
       required:
@@ -11868,6 +12165,36 @@ components:
       - status
       - student_count
       - timezone
+    Preference:
+      type: object
+      properties:
+        kind:
+          $ref: '#/components/schemas/NotificationKindEnum'
+        label:
+          type: string
+          readOnly: true
+        in_app:
+          type: boolean
+        email:
+          type: boolean
+      required:
+      - email
+      - in_app
+      - kind
+      - label
+    PreferenceRequest:
+      type: object
+      properties:
+        kind:
+          $ref: '#/components/schemas/NotificationKindEnum'
+        in_app:
+          type: boolean
+        email:
+          type: boolean
+      required:
+      - email
+      - in_app
+      - kind
     PrimaryGuardian:
       type: object
       properties:
@@ -12711,6 +13038,12 @@ components:
           maximum: 9223372036854775807
           minimum: 0
           format: int64
+        parent_email_payments:
+          type: boolean
+          description: Payment reminders and overdue notices.
+        parent_email_absences:
+          type: boolean
+          description: An email the evening of an absence.
     SchoolSettingsRequest:
       type: object
       properties:
@@ -12747,6 +13080,12 @@ components:
           maximum: 9223372036854775807
           minimum: 0
           format: int64
+        parent_email_payments:
+          type: boolean
+          description: Payment reminders and overdue notices.
+        parent_email_absences:
+          type: boolean
+          description: An email the evening of an absence.
     SchoolStatusEnum:
       enum:
       - active
@@ -13732,6 +14071,13 @@ components:
       - excused
       - late
       - present
+    UnreadCount:
+      type: object
+      properties:
+        unread:
+          type: integer
+      required:
+      - unread
     VerifyEmailRequest:
       type: object
       properties:

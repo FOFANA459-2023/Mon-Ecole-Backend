@@ -298,6 +298,10 @@ def _transition(
         old={"status": old},
         new={"status": to, **({"reason": note} if note else {})},
     )
+    from apps.notifications.events import gradebook_changed
+
+    actor = _user(request)
+    transaction.on_commit(lambda: gradebook_changed(gradebook, action, actor, note))
     return gradebook
 
 

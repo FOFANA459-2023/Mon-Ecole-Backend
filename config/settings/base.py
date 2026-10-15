@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "apps.enrollments",
     "apps.documents",
     "apps.administration",
+    "apps.notifications",
     "apps.search",
     "apps.dashboard",
     "apps.imports",
@@ -177,6 +178,14 @@ CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_BEAT_SCHEDULE = {
     "purge-job-results": {"task": "apps.core.tasks.purge_job_results", "schedule": crontab(hour=2, minute=0)},
     # After the school day in Guinea and Liberia (UTC+0).
+    "dispatch-announcements": {
+        "task": "apps.notifications.tasks.dispatch_announcements",
+        "schedule": crontab(minute="*/10"),
+    },
+    "morning-round": {
+        "task": "apps.notifications.tasks.morning_round",
+        "schedule": crontab(hour=6, minute=30),
+    },
     "check-absenteeism": {
         "task": "apps.attendance.tasks.check_absenteeism",
         "schedule": crontab(hour=19, minute=0),
@@ -194,6 +203,8 @@ EMAILJS_SERVICE_ID = env("EMAILJS_SERVICE_ID", default="")
 EMAILJS_TEMPLATE_ID = env("EMAILJS_TEMPLATE_ID", default="")
 EMAILJS_PUBLIC_KEY = env("EMAILJS_PUBLIC_KEY", default="")
 EMAILJS_PRIVATE_KEY = env("EMAILJS_PRIVATE_KEY", default="")
+# Emails allowed per month by the EmailJS plan (0 = no limit checked). Over it, emails are skipped and logged.
+EMAILJS_MONTHLY_LIMIT = env.int("EMAILJS_MONTHLY_LIMIT", default=0)
 
 ADMIN_URL = env("DJANGO_ADMIN_URL", default="admin/")
 API_DOCS_ENABLED = env.bool("API_DOCS_ENABLED", default=DEBUG)
@@ -235,6 +246,7 @@ SPECTACULAR_SETTINGS = {
         "RankMethodEnum": "apps.assessments.models.GradingScale.RankMethod",
         "AttendanceStatusEnum": "apps.attendance.models.Status",
         "StaffAttendanceStatusEnum": "apps.attendance.models.StaffAttendance.StaffStatus",
+        "NotificationKindEnum": "apps.notifications.models.Kind",
     },
 }
 

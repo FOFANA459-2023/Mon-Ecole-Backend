@@ -38,6 +38,7 @@ def check_school(school, today: date | None = None) -> dict[str, int]:
     threshold, days = rule(school)
     today = today or school_today(school)
     outcome = {"raised": 0, "updated": 0, "cleared": 0}
+    raised = []
     open_alerts = {
         a.enrollment_id: a
         for a in AbsenceAlert.objects.select_for_update().filter(
@@ -71,7 +72,11 @@ def check_school(school, today: date | None = None) -> dict[str, int]:
         alert = open_alerts.pop(enrollment_id, None)
         values = {"absences": len(dates), "since": min(dates), "last_absence": max(dates)}
         if alert is None:
-            AbsenceAlert.objects.create(school=school, enrollment_id=enrollment_id, raised_on=today, **values)
+            raised.append(
+                AbsenceAlert.objects.create(
+                    school=school, enrollment_id=enrollment_id, raised_on=today, **values
+                )
+            )
             outcome["raised"] += 1
         elif any(getattr(alert, key) != value for key, value in values.items()):
             for key, value in values.items():
@@ -83,13 +88,32 @@ def check_school(school, today: date | None = None) -> dict[str, int]:
         alert.status, alert.closed_on = AbsenceAlert.AlertStatus.CLEARED, today
         alert.save(update_fields=["status", "closed_on", "updated_at"])
         outcome["cleared"] += 1
+    if raised:
+        from apps.notifications.events import absence_alerts_raised
+
+        ids = [a.pk for a in raised]
+        transaction.on_commit(
+            lambda: absence_alerts_raised(
+                school,
+                list(
+                    AbsenceAlert.objects.filter(pk__in=ids).select_related(
+                        "enrollment__class_group__class_teacher"
+                    )
+                ),
+                today,
+            )
+        )
     return outcome
 
 
 def check_all_schools() -> int:
+    """The evening round: alerts, and the day's absence emails to parents where the school wants them."""
+    from apps.notifications.events import parent_absence_emails
+
     raised = 0
     for school in School.objects.filter(status=School.Status.ACTIVE).select_related("settings"):
         raised += check_school(school)["raised"]
+        parent_absence_emails(school, school_today(school))
     return raised
 
 

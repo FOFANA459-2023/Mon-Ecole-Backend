@@ -9,6 +9,7 @@ urlpatterns = [
     path("", include("apps.enrollments.urls")),
     path("", include("apps.documents.urls")),
     path("", include("apps.administration.urls")),
+    path("", include("apps.notifications.urls")),
     path("", include("apps.search.urls")),
     path("", include("apps.dashboard.urls")),
     path("", include("apps.imports.urls")),

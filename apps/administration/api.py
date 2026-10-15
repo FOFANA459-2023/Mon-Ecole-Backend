@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.db.models import Count, Q
 from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
@@ -65,9 +66,21 @@ class AnnouncementViewSet(TenantModelViewSet):
             return queryset
         return visible_announcements(self.request, queryset)
 
+    def perform_create(self, serializer):
+        super().perform_create(serializer)
+        self._dispatch(serializer.instance)
+
     def perform_update(self, serializer):
         serializer.validated_data["updated_by"] = self.request.user
         super().perform_update(serializer)
+        self._dispatch(serializer.instance)
+
+    @staticmethod
+    def _dispatch(announcement):
+        """Published now: tell its audience after saving (scheduled ones go out with the next round)."""
+        from apps.notifications.events import dispatch_announcement
+
+        transaction.on_commit(lambda: dispatch_announcement(announcement))
 
 
 @extend_schema_view(
