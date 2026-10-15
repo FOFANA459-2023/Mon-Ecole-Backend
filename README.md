@@ -18,7 +18,8 @@ This repository is the **Django REST API** (plus Celery worker and beat). The we
 | 2 | Core school management: students, guardians, enrolment, classes, subjects, staff, documents, import, search | Built |
 | 3 | Finance & cash register: fees, invoices, payments, receipts, expenses, refunds, cash sessions, finance reports | Built |
 | 4 | Academics: teacher-defined grading rules, assessments, marks, review/publish, class results and ranks; daily class registers, staff attendance, attendance reports, high-absenteeism alerts; report cards (term and annual PDF, honours bands, comments), every issued card kept and versioned, a level or the whole school printed in the background; grade, ranking and subject-results reports | Built (layout to match the client's sample report card when it arrives) |
-| 5–7 | Reports & notifications, AI, hardening & go-live | Planned |
+| 5 | Reports, notifications, dashboard: the full ToR §20 report catalogue (school, finance, academic), the dashboard (KPIs, charts, filters, alerts), in-app notifications and emails (staff preferences, parent emails opt-in), administration (announcements, calendar, departments, official documents), database backups every 4 hours with history and a restore runbook | Built |
+| 6–7 | AI, hardening & go-live | Planned |
 
 Hosting today: a free-tier production server on AWS (one EC2 instance, [infra/aws](infra/aws/README.md)) with Supabase Free. The planned ECS Fargate setup comes before go-live; the deploy workflow supports both.
 
