@@ -1918,13 +1918,47 @@ paths:
     get:
       operationId: dashboard_summary_retrieve
       description: |-
-        Headline numbers for the dashboard, for one academic year: school-wide, or limited to the user's
-        own classes when they may not see every class (see academics.scoping).
+        The dashboard of one school year (ToR §5): headline numbers, charts and alerts.
+
+        School-wide, or limited to the user's own classes when they may not see every class. Finance figures need
+        finance.view, attendance attendance.view, results grades.view. Filters: term (results, attendance),
+        level or class (every figure), payment status (finance).
       parameters:
       - in: query
         name: academic_year
         schema:
           type: integer
+      - in: query
+        name: class_group
+        schema:
+          type: integer
+          nullable: true
+      - in: query
+        name: level
+        schema:
+          type: integer
+          nullable: true
+      - in: query
+        name: payment_status
+        schema:
+          enum:
+          - paid
+          - partial
+          - unpaid
+          - overdue
+          - ''
+          type: string
+        description: |-
+          * `paid` - paid
+          * `partial` - partial
+          * `unpaid` - unpaid
+          * `overdue` - overdue
+      - in: query
+        name: term
+        schema:
+          type: integer
+          nullable: true
+        description: Defaults to today's term.
       tags:
       - dashboard
       security:
