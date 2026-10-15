@@ -47,6 +47,13 @@ ANY_MEMBER = {
     ("get", "api/v1/documents/1/"),
     ("delete", "api/v1/documents/1/"),
     ("get", "api/v1/documents/1/download/"),
+    # Administration: departments, announcements meant for them and the school calendar.
+    ("get", "api/v1/departments/"),
+    ("get", "api/v1/departments/1/"),
+    ("get", "api/v1/announcements/"),
+    ("get", "api/v1/announcements/1/"),
+    ("get", "api/v1/calendar-events/"),
+    ("get", "api/v1/calendar-events/1/"),
     # Background jobs: each user only ever sees the jobs they started.
     ("get", "api/v1/jobs/1/"),
     ("get", "api/v1/jobs/1/download/"),

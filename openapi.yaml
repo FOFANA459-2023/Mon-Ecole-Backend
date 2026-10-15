@@ -171,6 +171,153 @@ paths:
               schema:
                 $ref: '#/components/schemas/AcademicYear'
           description: ''
+  /api/v1/announcements/:
+    get:
+      operationId: announcements_list
+      description: School announcements. Members read the published ones meant for
+        them; managers write them.
+      parameters:
+      - in: query
+        name: manage
+        schema:
+          type: boolean
+        description: Every announcement, scheduled and expired too (administration.manage).
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - announcements
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAnnouncementList'
+          description: ''
+    post:
+      operationId: announcements_create
+      description: School announcements. Members read the published ones meant for
+        them; managers write them.
+      tags:
+      - announcements
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnnouncementRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AnnouncementRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AnnouncementRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Announcement'
+          description: ''
+  /api/v1/announcements/{id}/:
+    get:
+      operationId: announcements_retrieve
+      description: School announcements. Members read the published ones meant for
+        them; managers write them.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this announcement.
+        required: true
+      tags:
+      - announcements
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Announcement'
+          description: ''
+    patch:
+      operationId: announcements_partial_update
+      description: School announcements. Members read the published ones meant for
+        them; managers write them.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this announcement.
+        required: true
+      tags:
+      - announcements
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedAnnouncementRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedAnnouncementRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedAnnouncementRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Announcement'
+          description: ''
+    delete:
+      operationId: announcements_destroy
+      description: School announcements. Members read the published ones meant for
+        them; managers write them.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this announcement.
+        required: true
+      tags:
+      - announcements
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/assessments/:
     get:
       operationId: assessments_list
@@ -887,6 +1034,160 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/calendar-events/:
+    get:
+      operationId: calendar_events_list
+      description: 'The school calendar: exams, holidays, meetings, events and deadlines.'
+      parameters:
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+        description: Events ending on or after.
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+        description: Events starting on or before.
+      - in: query
+        name: kind
+        schema:
+          type: string
+          enum:
+          - deadline
+          - event
+          - exam
+          - holiday
+          - meeting
+      - in: query
+        name: level
+        schema:
+          type: integer
+        description: Whole-school events and this level's.
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - calendar-events
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CalendarEvent'
+          description: ''
+    post:
+      operationId: calendar_events_create
+      description: 'The school calendar: exams, holidays, meetings, events and deadlines.'
+      tags:
+      - calendar-events
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalendarEventRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CalendarEventRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CalendarEventRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarEvent'
+          description: ''
+  /api/v1/calendar-events/{id}/:
+    get:
+      operationId: calendar_events_retrieve
+      description: 'The school calendar: exams, holidays, meetings, events and deadlines.'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this calendar event.
+        required: true
+      tags:
+      - calendar-events
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarEvent'
+          description: ''
+    patch:
+      operationId: calendar_events_partial_update
+      description: 'The school calendar: exams, holidays, meetings, events and deadlines.'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this calendar event.
+        required: true
+      tags:
+      - calendar-events
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCalendarEventRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCalendarEventRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCalendarEventRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarEvent'
+          description: ''
+    delete:
+      operationId: calendar_events_destroy
+      description: 'The school calendar: exams, holidays, meetings, events and deadlines.'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this calendar event.
+        required: true
+      tags:
+      - calendar-events
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/cash-registers/:
     get:
       operationId: cash_registers_list
@@ -1636,6 +1937,148 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
+  /api/v1/departments/:
+    get:
+      operationId: departments_list
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - name: ordering
+        required: false
+        in: query
+        description: Which field to use when ordering the results.
+        schema:
+          type: string
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      tags:
+      - departments
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Department'
+          description: ''
+    post:
+      operationId: departments_create
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      tags:
+      - departments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DepartmentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DepartmentRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DepartmentRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Department'
+          description: ''
+  /api/v1/departments/{id}/:
+    get:
+      operationId: departments_retrieve
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this department.
+        required: true
+      tags:
+      - departments
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Department'
+          description: ''
+    patch:
+      operationId: departments_partial_update
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this department.
+        required: true
+      tags:
+      - departments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedDepartmentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedDepartmentRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedDepartmentRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Department'
+          description: ''
+    delete:
+      operationId: departments_destroy
+      description: |-
+        CRUD for school-owned records: scoped to the current school, audited on every write.
+
+        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this department.
+        required: true
+      tags:
+      - departments
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/documents/:
     get:
       operationId: documents_list
@@ -5070,6 +5513,10 @@ paths:
         Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
       parameters:
       - in: query
+        name: department
+        schema:
+          type: integer
+      - in: query
         name: has_access
         schema:
           type: boolean
@@ -6735,6 +7182,90 @@ components:
         * `active` - active
         * `pending` - pending
         * `expired` - expired
+    Announcement:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          maxLength: 150
+        body:
+          type: string
+          maxLength: 5000
+        priority:
+          $ref: '#/components/schemas/PriorityEnum'
+        roles:
+          type: array
+          items:
+            type: integer
+        role_names:
+          type: array
+          items:
+            type: string
+          readOnly: true
+        publish_at:
+          type: string
+          format: date-time
+        expires_on:
+          type: string
+          format: date
+          nullable: true
+        pinned:
+          type: boolean
+        is_published:
+          type: boolean
+          readOnly: true
+        author_name:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - author_name
+      - body
+      - created_at
+      - id
+      - is_published
+      - role_names
+      - title
+      - updated_at
+    AnnouncementRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 150
+        body:
+          type: string
+          minLength: 1
+          maxLength: 5000
+        priority:
+          $ref: '#/components/schemas/PriorityEnum'
+        roles:
+          type: array
+          items:
+            type: integer
+        publish_at:
+          type: string
+          format: date-time
+        expires_on:
+          type: string
+          format: date
+          nullable: true
+        pinned:
+          type: boolean
+      required:
+      - body
+      - title
     ArchiveStatusEnum:
       enum:
       - active
@@ -6913,6 +7444,101 @@ components:
     BlankEnum:
       enum:
       - ''
+    CalendarEvent:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          maxLength: 150
+        kind:
+          $ref: '#/components/schemas/CalendarEventKindEnum'
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        start_time:
+          type: string
+          format: time
+          nullable: true
+        end_time:
+          type: string
+          format: time
+          nullable: true
+        location:
+          type: string
+          maxLength: 150
+        description:
+          type: string
+          maxLength: 2000
+        levels:
+          type: array
+          items:
+            type: integer
+        level_names:
+          type: array
+          items:
+            type: string
+          readOnly: true
+      required:
+      - id
+      - level_names
+      - start_date
+      - title
+    CalendarEventKindEnum:
+      enum:
+      - exam
+      - holiday
+      - meeting
+      - event
+      - deadline
+      type: string
+      description: |-
+        * `exam` - Exam
+        * `holiday` - Holiday
+        * `meeting` - Meeting
+        * `event` - School event
+        * `deadline` - Deadline
+    CalendarEventRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 150
+        kind:
+          $ref: '#/components/schemas/CalendarEventKindEnum'
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        start_time:
+          type: string
+          format: time
+          nullable: true
+        end_time:
+          type: string
+          format: time
+          nullable: true
+        location:
+          type: string
+          maxLength: 150
+        description:
+          type: string
+          maxLength: 2000
+        levels:
+          type: array
+          items:
+            type: integer
+      required:
+      - start_date
+      - title
     CancelInvoiceRequest:
       type: object
       properties:
@@ -7596,6 +8222,47 @@ components:
       required:
       - date
       - status
+    Department:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 255
+        head:
+          type: integer
+          nullable: true
+        head_name:
+          type: string
+          readOnly: true
+        staff_count:
+          type: integer
+          readOnly: true
+      required:
+      - head_name
+      - id
+      - name
+      - staff_count
+    DepartmentRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 255
+        head:
+          type: integer
+          nullable: true
+      required:
+      - name
     Director:
       type: object
       properties:
@@ -9800,6 +10467,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AbsenceAlert'
+    PaginatedAnnouncementList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Announcement'
     PaginatedAuditLogList:
       type: object
       required:
@@ -10237,6 +10927,32 @@ components:
           maximum: 6
           minimum: 0
           writeOnly: true
+    PatchedAnnouncementRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 150
+        body:
+          type: string
+          minLength: 1
+          maxLength: 5000
+        priority:
+          $ref: '#/components/schemas/PriorityEnum'
+        roles:
+          type: array
+          items:
+            type: integer
+        publish_at:
+          type: string
+          format: date-time
+        expires_on:
+          type: string
+          format: date
+          nullable: true
+        pinned:
+          type: boolean
     PatchedAssessmentRequest:
       type: object
       properties:
@@ -10261,6 +10977,39 @@ components:
           format: decimal
           pattern: ^-?\d{0,4}(?:\.\d{0,2})?$
           description: How much it counts inside its category (average method only).
+    PatchedCalendarEventRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 150
+        kind:
+          $ref: '#/components/schemas/CalendarEventKindEnum'
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        start_time:
+          type: string
+          format: time
+          nullable: true
+        end_time:
+          type: string
+          format: time
+          nullable: true
+        location:
+          type: string
+          maxLength: 150
+        description:
+          type: string
+          maxLength: 2000
+        levels:
+          type: array
+          items:
+            type: integer
     PatchedCashRegisterRequest:
       type: object
       properties:
@@ -10313,6 +11062,19 @@ components:
           type: string
           format: decimal
           pattern: ^-?\d{0,3}(?:\.\d{0,1})?$
+          nullable: true
+    PatchedDepartmentRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 255
+        head:
+          type: integer
           nullable: true
     PatchedEnrollmentRequest:
       type: object
@@ -10649,6 +11411,9 @@ components:
         employment_date:
           type: string
           format: date
+          nullable: true
+        department:
+          type: integer
           nullable: true
     PatchedStudentDiscountRequest:
       type: object
@@ -11119,6 +11884,14 @@ components:
       - id
       - phone
       - relationship
+    PriorityEnum:
+      enum:
+      - normal
+      - important
+      type: string
+      description: |-
+        * `normal` - Normal
+        * `important` - Important
     PromoteRequest:
       type: object
       properties:
@@ -12155,6 +12928,13 @@ components:
           type: string
           format: date
           nullable: true
+        department:
+          type: integer
+          nullable: true
+        department_name:
+          type: string
+          readOnly: true
+          default: ''
         status:
           allOf:
           - $ref: '#/components/schemas/ArchiveStatusEnum'
@@ -12183,6 +12963,7 @@ components:
       - archived_at
       - assignments
       - created_at
+      - department_name
       - first_name
       - full_name
       - has_access
@@ -12253,6 +13034,9 @@ components:
         employment_date:
           type: string
           format: date
+          nullable: true
+        department:
+          type: integer
           nullable: true
         role_id:
           type: integer

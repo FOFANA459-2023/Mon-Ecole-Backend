@@ -35,6 +35,7 @@ STAFF_FIELDS = [
     "qualification",
     "specialization",
     "employment_date",
+    "department",
 ]
 
 

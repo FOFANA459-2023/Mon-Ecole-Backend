@@ -296,7 +296,7 @@ class StaffFilter(django_filters.FilterSet):
 
     class Meta:
         model = StaffMember
-        fields = ["status", "staff_type"]
+        fields = ["status", "staff_type", "department"]
 
 
 class StaffViewSet(TenantModelViewSet):

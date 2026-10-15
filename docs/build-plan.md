@@ -229,7 +229,7 @@ Common fields on every table: `id` (BigAutoField), `created_at`, `updated_at`, `
 - Academic reports (built 2026-10-14): `/reports/academic/{grades|ranking|subjects}/` — grade report of a class (marks per subject, average, rank, decision; subject statistics), ranking (classes compared by average and pass rate, students ranked per class and, for a level, across the level), results by subject (every class-subject, plus the gradebooks not published yet). Published marks only; a term or the year (annual rules). Same renderers as the finance reports (JSON/PDF/Excel/CSV, `mark` column kind); exports need `reports.export` and are audited; teachers reach the class they lead only.
 
 **administration / documents / notifications / audit / ai**
-- `Department`, `Announcement(title, body, audience roles/classes, publish_at)`, `CalendarEvent(title, type exam/holiday/meeting, start, end)`
+- Administration (built 2026-10-15): `Department(name, description, head→StaffMember)`, `StaffMember.department`; `Announcement(title, body, priority normal/important, roles M2M — empty = everyone, publish_at, expires_on, pinned)` — members read the published ones meant for their roles, `administration.manage` writes them; `CalendarEvent(title, kind exam/holiday/meeting/event/deadline, start/end date, optional times, location, description, levels M2M — empty = whole school)`. Official documents = `Document(owner_type=school, owner_id=school id)`.
 - `Document(owner_type student|staff|school, owner_id, category, file, uploaded_by)`
 - `Notification(user, type, title, body, link, read_at)`; `NotificationPreference(user, type, in_app, email)`
 - `AuditLog` (see §4.6); `Job(type, status, progress, result_file, error, created_by)`

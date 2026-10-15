@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "apps.academics",
     "apps.enrollments",
     "apps.documents",
+    "apps.administration",
     "apps.search",
     "apps.dashboard",
     "apps.imports",

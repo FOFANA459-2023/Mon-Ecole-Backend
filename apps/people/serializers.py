@@ -3,6 +3,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.academics.models import ClassGroup, Subject
+from apps.administration.models import Department
 from apps.core.serializers import TenantPrimaryKeyRelatedField
 
 from .models import Guardian, StaffMember, Student, StudentGuardian
@@ -238,6 +239,10 @@ class StaffSerializer(serializers.ModelSerializer):
     has_access = serializers.SerializerMethodField()
     employee_number = serializers.CharField(max_length=30, required=False, allow_blank=True)
     assignments = serializers.SerializerMethodField()
+    department = TenantPrimaryKeyRelatedField(
+        queryset=Department.objects.all(), required=False, allow_null=True
+    )
+    department_name = serializers.CharField(source="department.name", read_only=True, default="")
 
     class Meta:
         model = StaffMember
@@ -257,6 +262,8 @@ class StaffSerializer(serializers.ModelSerializer):
             "qualification",
             "specialization",
             "employment_date",
+            "department",
+            "department_name",
             "status",
             "photo_url",
             "has_access",
