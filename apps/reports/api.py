@@ -23,6 +23,7 @@ from apps.core.serializers import TenantPrimaryKeyRelatedField
 from apps.finance.models import Expense, Payment
 
 from . import academic
+from . import school as school_reports
 from .finance import BUILDERS, Params
 from .render import to_csv, to_json, to_pdf, to_xlsx
 
@@ -201,6 +202,85 @@ class AcademicReportView(APIView):
             "export",
             request=request,
             module="grades",
+            entity_type="report",
+            entity_id=key,
+            summary=f"{report.title} ({export}): {report.subtitle}",
+            new={"report": key, "format": export},
+        )
+        return _download(report, school, language, request.user, export, f"{key}.{export}")
+
+
+class SchoolReportParamsSerializer(serializers.Serializer):
+    academic_year = TenantPrimaryKeyRelatedField(
+        queryset=AcademicYear.objects.all(),
+        required=False,
+        allow_null=True,
+        help_text="Defaults to the current year.",
+    )
+    level = TenantPrimaryKeyRelatedField(queryset=Level.objects.all(), required=False, allow_null=True)
+    class_group = TenantPrimaryKeyRelatedField(
+        queryset=ClassGroup.objects.all(), required=False, allow_null=True
+    )
+    date_from = serializers.DateField(
+        required=False, allow_null=True, help_text="Enrolment and attendance reports."
+    )
+    date_to = serializers.DateField(required=False, allow_null=True)
+    export = serializers.ChoiceField(choices=["pdf", "xlsx", "csv"], required=False, allow_blank=True)
+
+    def validate(self, attrs):
+        year = attrs.get("academic_year") or (
+            attrs["class_group"].academic_year if attrs.get("class_group") else None
+        )
+        year = year or current_year(self.context["request"].school)
+        if year is None:
+            raise serializers.ValidationError({"academic_year": [_("Choose a school year.")]})
+        if attrs.get("class_group") is not None and attrs["class_group"].academic_year_id != year.pk:
+            raise serializers.ValidationError({"class_group": [_("Choose a class of this academic year.")]})
+        if attrs.get("date_from") and attrs.get("date_to") and attrs["date_from"] > attrs["date_to"]:
+            raise serializers.ValidationError({"date_from": [_("The start must be on or before the end.")]})
+        attrs["academic_year"] = year
+        return attrs
+
+
+class SchoolReportView(APIView):
+    """School reports: enrolment, classes, teachers, attendance and student statistics (reports.view).
+
+    One school year, the whole school or a level or class. `export=pdf|xlsx|csv` needs reports.export.
+    """
+
+    permission_classes = [IsAuthenticated, HasSchoolPermission]
+    required_permissions: dict[str, list[str]] = {"get": ["reports.view"]}
+
+    @extend_schema(
+        parameters=[
+            SchoolReportParamsSerializer,
+            OpenApiParameter(
+                "key", OpenApiTypes.STR, OpenApiParameter.PATH, enum=list(school_reports.BUILDERS)
+            ),
+        ],
+        responses={
+            200: OpenApiResponse(OpenApiTypes.OBJECT, description="The report (JSON) or the exported file.")
+        },
+    )
+    def get(self, request, key: str):
+        builder = school_reports.BUILDERS.get(key)
+        if builder is None:
+            raise NotFound()
+        serializer = SchoolReportParamsSerializer(data=request.query_params, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        export = data.pop("export", "") or ""
+        if export and "reports.export" not in request.permission_codes:
+            raise PermissionDenied(_("You cannot export reports."))
+        school = request.school
+        language = request.user.language if request.user.language in ("fr", "en") else school.default_language
+        report = builder(school, school_reports.Params(**data), language)
+        if not export:
+            return Response(to_json(report, school.currency))
+        audit.record(
+            "export",
+            request=request,
+            module="reports",
             entity_type="report",
             entity_id=key,
             summary=f"{report.title} ({export}): {report.subtitle}",

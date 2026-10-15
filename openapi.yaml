@@ -5551,6 +5551,79 @@ paths:
                 type: object
                 additionalProperties: {}
           description: The report (JSON) or the exported file.
+  /api/v1/reports/school/{key}/:
+    get:
+      operationId: reports_school_retrieve
+      description: |-
+        School reports: enrolment, classes, teachers, attendance and student statistics (reports.view).
+
+        One school year, the whole school or a level or class. `export=pdf|xlsx|csv` needs reports.export.
+      parameters:
+      - in: query
+        name: academic_year
+        schema:
+          type: integer
+          nullable: true
+        description: Defaults to the current year.
+      - in: query
+        name: class_group
+        schema:
+          type: integer
+          nullable: true
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+          nullable: true
+        description: Enrolment and attendance reports.
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+          nullable: true
+      - in: query
+        name: export
+        schema:
+          enum:
+          - pdf
+          - xlsx
+          - csv
+          - ''
+          type: string
+        description: |-
+          * `pdf` - pdf
+          * `xlsx` - xlsx
+          * `csv` - csv
+      - in: path
+        name: key
+        schema:
+          type: string
+          enum:
+          - attendance
+          - classes
+          - enrollment
+          - statistics
+          - teachers
+        required: true
+      - in: query
+        name: level
+        schema:
+          type: integer
+          nullable: true
+      tags:
+      - reports
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: The report (JSON) or the exported file.
   /api/v1/roles/:
     get:
       operationId: roles_list
