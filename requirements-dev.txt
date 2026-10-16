@@ -6,6 +6,6 @@ pytest-randomly>=3.16
 factory-boy>=3.3
 ruff>=0.9
 django-stubs[compatible-mypy]>=5.2,<5.3
-djangorestframework-stubs[compatible-mypy]>=3.16,<3.17
+djangorestframework-stubs[compatible-mypy]>=3.16.9,<3.17
 pip-audit>=2.9
 pre-commit>=4.2
