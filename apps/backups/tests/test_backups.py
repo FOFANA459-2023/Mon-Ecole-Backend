@@ -4,6 +4,7 @@ import gzip
 from datetime import timedelta
 
 import pytest
+from django.db import connection
 from django.utils import timezone
 
 from apps.audit.models import AuditLog
@@ -14,12 +15,18 @@ pytestmark = pytest.mark.django_db
 URL = "/api/v1/platform/backups/"
 
 
-def test_a_backup_of_the_development_database(school):
+def test_a_backup_of_the_test_database(school):
+    """SQLite (local runs): a gzipped SQL script. PostgreSQL (CI): a real pg_dump in custom format."""
     backup = services.run(Backup.objects.create())
-    assert backup.status == "done" and backup.engine == "sqlite"
+    assert backup.status == "done", backup.error
+    assert backup.engine == ("sqlite" if connection.vendor == "sqlite" else "postgresql")
     assert backup.size > 0 and backup.file.name.startswith("backups/mon-ecole-")
     with backup.file.open("rb") as handle:
-        assert gzip.decompress(handle.read()).startswith(b"BEGIN TRANSACTION;")
+        content = handle.read()
+    if backup.engine == "sqlite":
+        assert gzip.decompress(content).startswith(b"BEGIN TRANSACTION;")
+    else:
+        assert content.startswith(b"PGDMP")
 
 
 def test_pg_dump_gets_the_connection_without_the_password_on_the_command_line(
