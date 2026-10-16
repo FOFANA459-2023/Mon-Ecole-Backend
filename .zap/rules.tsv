@@ -9,6 +9,11 @@
 # so it is a warning here; reflected XSS (40012) stays a failure.
 40014	WARN	Cross Site Scripting (Persistent)
 40018	FAIL	SQL Injection
+# 2026-10-16: 40018 fired once on /levels/ for ?ordering=ordering+AND+1=1+-- while an earlier run of the same code
+# passed. Replayed: the 1=1 and 1=2 responses are identical (DRF keeps only known ordering fields); the scanner's
+# own concurrent POSTs of "ZAP" levels changed the list between its requests. test_ordering_never_reaches_sql
+# checks ZAP's payloads on every list endpoint in every CI run. Out of scope for this one URL only.
+40018	OUTOFSCOPE	http://localhost:8000/api/v1/levels/\?.*
 40019	FAIL	SQL Injection - MySQL
 40020	FAIL	SQL Injection - Hypersonic SQL
 40021	FAIL	SQL Injection - Oracle
