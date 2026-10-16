@@ -23,7 +23,7 @@ from apps.finance.pdf import CELL, SUB, TITLE, document_header, format_money
 from .base import Column, Report
 
 PREVIEW_ROWS = 1000
-NUMERIC = {"money", "number", "percent"}
+NUMERIC = {"money", "number", "percent", "mark"}
 GENERATED = {"fr": "Édité le {when} par {name}", "en": "Printed {when} by {name}"}
 PAGE = {"fr": "Page {n}", "en": "Page {n}"}
 
@@ -171,6 +171,10 @@ def to_xlsx(report: Report, currency: str) -> bytes:
                     cell.number_format = money_format
                 elif kind == "percent":
                     cell.number_format = "0.0%"
+                elif kind == "mark" and isinstance(cell.value, Decimal):
+                    exponent = cell.value.as_tuple().exponent
+                    places = -exponent if isinstance(exponent, int) else 0
+                    cell.number_format = "0." + "0" * places if places > 0 else "0"
                 elif kind == "date":
                     cell.number_format = "dd/mm/yyyy"
                 elif kind == "datetime":
@@ -205,6 +209,10 @@ def _display(value, kind: str, currency: str, school, language: str) -> str:
         return format_money(to_money(value, currency), currency, language)
     if kind == "percent":
         return f"{value} %".replace(".", "," if language == "fr" else ".")
+    if kind in ("mark", "number") and isinstance(value, Decimal):
+        # A mark keeps its decimals ("15.50"); a coefficient loses needless ones ("4", not "4.0").
+        text = f"{value if kind == 'mark' else value.normalize():f}"
+        return text.replace(".", ",") if language == "fr" else text
     if kind == "datetime" and isinstance(value, datetime):
         local = _local(value)
         return f"{format_date(local.date(), school)} {local:%H:%M}"

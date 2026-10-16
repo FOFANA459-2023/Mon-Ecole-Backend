@@ -4,10 +4,18 @@ from django.utils.translation import gettext_lazy as _
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from apps.academics.models import ClassGroup, Level, Term
+from apps.academics.models import AcademicYear, ClassGroup, Level, Term
 from apps.core.serializers import TenantPrimaryKeyRelatedField
 
-from .models import SCORE_DIGITS, SCORE_PLACES, Assessment, Gradebook, GradeCategory, GradingScale
+from .models import (
+    SCORE_DIGITS,
+    SCORE_PLACES,
+    Assessment,
+    Gradebook,
+    GradeCategory,
+    GradingScale,
+    ReportCard,
+)
 from .scoping import can_edit, is_subject_teacher, visible_gradebooks
 
 
@@ -444,3 +452,58 @@ class StudentResultsSerializer(serializers.Serializer):
     class_name = serializers.CharField()
     scale = ScaleBriefSerializer(allow_null=True)
     terms = StudentTermResultSerializer(many=True)
+
+
+class ReportCardJobSerializer(serializers.Serializer):
+    """Report cards for many classes at once: one class, a level or (neither) the whole school year."""
+
+    academic_year = TenantPrimaryKeyRelatedField(queryset=AcademicYear.objects.all())
+    term = TenantPrimaryKeyRelatedField(
+        queryset=Term.objects.all(), required=False, allow_null=True, help_text="Leave out for the year."
+    )
+    level = TenantPrimaryKeyRelatedField(queryset=Level.objects.all(), required=False, allow_null=True)
+    class_group = TenantPrimaryKeyRelatedField(
+        queryset=ClassGroup.objects.all(), required=False, allow_null=True
+    )
+
+    def validate(self, attrs):
+        year = attrs["academic_year"]
+        term, class_group = attrs.get("term"), attrs.get("class_group")
+        if term is not None and term.academic_year_id != year.pk:
+            raise serializers.ValidationError({"term": [_("Choose a term of this academic year.")]})
+        if class_group is not None and class_group.academic_year_id != year.pk:
+            raise serializers.ValidationError({"class_group": [_("Choose a class of this academic year.")]})
+        return attrs
+
+
+class IssuedReportCardSerializer(serializers.ModelSerializer):
+    class_name = serializers.CharField(source="enrollment.class_group.name")
+    academic_year_name = serializers.CharField(source="enrollment.academic_year.name")
+    term_name = serializers.SerializerMethodField()
+    issued_by_name = serializers.SerializerMethodField()
+    is_latest = serializers.BooleanField(read_only=True)
+    average = mark_field()
+
+    class Meta:
+        model = ReportCard
+        fields = [
+            "id",
+            "enrollment",
+            "class_name",
+            "academic_year_name",
+            "term",
+            "term_name",
+            "version",
+            "is_latest",
+            "average",
+            "rank",
+            "size",
+            "issued_by_name",
+            "created_at",
+        ]
+
+    def get_term_name(self, obj) -> str:
+        return obj.term.name if obj.term else ""
+
+    def get_issued_by_name(self, obj) -> str:
+        return obj.created_by.full_name if obj.created_by else ""

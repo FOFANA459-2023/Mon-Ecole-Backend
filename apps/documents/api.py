@@ -87,6 +87,9 @@ class DocumentViewSet(
         elif owner_type == Document.OwnerType.STAFF:
             if not StaffMember.objects.filter(school=school, pk=owner_id).exists():
                 raise NotFound()
+        elif owner_id != school.pk:
+            # The school's own documents are filed under the school's id.
+            raise NotFound()
 
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):

@@ -129,6 +129,9 @@ class StaffMember(Person):
     qualification = models.CharField(max_length=150, blank=True)
     specialization = models.CharField(max_length=150, blank=True)
     employment_date = models.DateField(null=True, blank=True)
+    department = models.ForeignKey(
+        "administration.Department", null=True, blank=True, on_delete=models.SET_NULL, related_name="staff"
+    )
     photo = models.FileField(upload_to=SchoolUploadPath("photos/staff"), blank=True)
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.ACTIVE)
     archived_at = models.DateTimeField(null=True, blank=True)

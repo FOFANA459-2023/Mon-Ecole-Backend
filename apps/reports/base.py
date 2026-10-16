@@ -8,7 +8,8 @@ from datetime import date
 class Column:
     key: str
     label: str
-    # text | money | number | percent | date | datetime, or auto: each row gives it under "kind".
+    # text | money | number | percent | mark | date | datetime, or auto: each row gives it under "kind".
+    # A mark is a Decimal already rounded to the school's decimals, shown as is ("15.50").
     kind: str = "text"
 
     def kind_for(self, row: dict) -> str:

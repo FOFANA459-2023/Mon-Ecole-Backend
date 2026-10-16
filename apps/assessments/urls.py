@@ -8,11 +8,13 @@ router.register("grading-scales", api.GradingScaleViewSet, basename="grading-sca
 router.register("gradebooks", api.GradebookViewSet, basename="gradebook")
 router.register("grade-categories", api.GradeCategoryViewSet, basename="grade-category")
 router.register("assessments", api.AssessmentViewSet, basename="assessment")
+router.register("issued-report-cards", api.IssuedReportCardViewSet, basename="issued-report-card")
 
 urlpatterns = [
     *router.urls,
     path("class-results/", api.ClassResultsView.as_view(), name="class-results"),
     path("report-cards/", api.ReportCardView.as_view(), name="report-cards"),
+    path("report-cards/jobs/", api.ReportCardJobView.as_view(), name="report-card-jobs"),
     path("report-comments/", api.ReportCommentsView.as_view(), name="report-comments"),
     path("student-results/<int:pk>/", api.StudentResultsView.as_view(), name="student-results"),
 ]

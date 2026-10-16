@@ -1,0 +1,40 @@
+# TEMPORARY test mode (see demo-db.sh): the app runs on a separate Postgres database on this server, filled
+# with fictional schools by `seed_showcase`. The real database (Supabase, DATABASE_URL in app.env) is not used
+# and not touched while this file is in use. Any deploy, or `demo-db.sh off`, goes back to the real database.
+#
+# The test database has no password and no published port: only this stack's containers can reach it.
+
+x-demo: &demo
+  environment:
+    DATABASE_URL: postgres://postgres@demo-db:5432/mon_ecole_demo
+    # Another Valkey database, so cached figures never cross between the real and the test data.
+    REDIS_URL: redis://valkey:6379/1
+  depends_on:
+    valkey:
+      condition: service_started
+    demo-db:
+      condition: service_healthy
+
+services:
+  demo-db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: mon_ecole_demo
+      POSTGRES_HOST_AUTH_METHOD: trust
+    # Small on purpose: it shares a 2 GB instance with the API and Celery.
+    command: postgres -c shared_buffers=64MB -c max_connections=30 -c work_mem=4MB
+    volumes:
+      - demo-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres", "-d", "mon_ecole_demo"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api: *demo
+  worker: *demo
+  beat: *demo
+
+volumes:
+  demo-pgdata:

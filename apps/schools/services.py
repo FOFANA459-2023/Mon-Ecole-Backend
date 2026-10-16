@@ -23,6 +23,10 @@ SETTINGS_FIELDS = [
     "invoice_prefix",
     "receipt_prefix",
     "ai_enabled",
+    "absence_alert_threshold",
+    "absence_alert_days",
+    "parent_email_payments",
+    "parent_email_absences",
 ]
 
 

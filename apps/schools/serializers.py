@@ -17,6 +17,16 @@ class SchoolSettingsSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Must be between 5 and 240 minutes.")
         return value
 
+    def validate_absence_alert_threshold(self, value):
+        if value > 60:
+            raise serializers.ValidationError("Must be between 0 (no alerts) and 60 absences.")
+        return value
+
+    def validate_absence_alert_days(self, value):
+        if not 7 <= value <= 120:
+            raise serializers.ValidationError("Must be between 7 and 120 days.")
+        return value
+
 
 class SchoolSerializer(serializers.ModelSerializer):
     settings = SchoolSettingsSerializer(required=False)

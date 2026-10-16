@@ -1,7 +1,11 @@
 from datetime import timedelta
 
-from drf_spectacular.utils import extend_schema
-from rest_framework.exceptions import NotFound
+from django.utils.translation import gettext as _
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
+from rest_framework import mixins, viewsets
+from rest_framework.decorators import action
+from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -12,13 +16,16 @@ from apps.academics.services import current_year
 from apps.core.permissions import HasSchoolPermission
 from apps.people.models import Student
 
-from . import selectors, services
+from . import alerts, selectors, services
+from .models import AbsenceAlert
 from .serializers import (
+    AbsenceAlertSerializer,
     AbsenceParamsSerializer,
     AbsenceRowSerializer,
     ClassMonthSerializer,
     DayClassSerializer,
     DayParamsSerializer,
+    FollowUpSerializer,
     MonthParamsSerializer,
     RegisterParamsSerializer,
     RegisterSheetSerializer,
@@ -147,3 +154,48 @@ class StaffAttendanceView(_AttendanceView):
             request.school, data["date"], [dict(e) for e in data["entries"]], request=request
         )
         return Response(StaffSheetSerializer(selectors.staff_sheet(request.school, data["date"])).data)
+
+
+@extend_schema_view(
+    list=extend_schema(
+        parameters=[
+            OpenApiParameter("status", OpenApiTypes.STR, enum=list(AbsenceAlert.AlertStatus.values)),
+            OpenApiParameter("class_group", OpenApiTypes.INT),
+        ]
+    )
+)
+class AbsenceAlertViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
+    """High-absenteeism alerts of the classes the user sees: open ones by default, newest first.
+
+    Raised every evening from the registers (see attendance.alerts); `follow-up` closes one with a note.
+    """
+
+    permission_classes = [IsAuthenticated, HasSchoolPermission]
+    serializer_class = AbsenceAlertSerializer
+    required_permissions = {"*": VIEW}
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return AbsenceAlert.objects.none()
+        classes = visible_classes(self.request, ClassGroup.objects.filter(school=self.request.school))
+        queryset = AbsenceAlert.objects.filter(
+            school=self.request.school, enrollment__class_group__in=classes
+        ).select_related("enrollment__student", "enrollment__class_group", "closed_by")
+        if self.action == "list":
+            status = self.request.query_params.get("status") or AbsenceAlert.AlertStatus.OPEN
+            queryset = queryset.filter(status=status)
+            class_group = self.request.query_params.get("class_group", "")
+            if class_group.isdigit():
+                queryset = queryset.filter(enrollment__class_group_id=int(class_group))
+        return queryset
+
+    @extend_schema(request=FollowUpSerializer, responses=AbsenceAlertSerializer)
+    @action(detail=True, methods=["post"], url_path="follow-up")
+    def follow_up(self, request, pk=None):
+        alert = self.get_object()
+        if alert.status != AbsenceAlert.AlertStatus.OPEN:
+            raise ValidationError({"detail": _("This alert is already closed.")})
+        serializer = FollowUpSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        alert = alerts.follow_up(alert, note=serializer.validated_data["note"], request=request)
+        return Response(AbsenceAlertSerializer(alert).data)
