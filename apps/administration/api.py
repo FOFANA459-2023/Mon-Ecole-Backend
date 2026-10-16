@@ -3,6 +3,7 @@ from django.db.models import Count, Q
 from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
+from rest_framework import serializers
 
 from apps.core.viewsets import TenantModelViewSet
 
@@ -10,6 +11,13 @@ from .models import Announcement, CalendarEvent, Department
 from .serializers import AnnouncementSerializer, CalendarEventSerializer, DepartmentSerializer
 
 MANAGE = ["administration.manage"]
+
+
+class CalendarRangeSerializer(serializers.Serializer):
+    date_from = serializers.DateField(required=False)
+    date_to = serializers.DateField(required=False)
+
+
 # Every member reads them (staff forms pick a department; everyone gets the announcements and the calendar).
 READ_MANAGE = {"list": [], "retrieve": [], "*": MANAGE}
 
@@ -107,10 +115,14 @@ class CalendarEventViewSet(TenantModelViewSet):
         if getattr(self, "swagger_fake_view", False) or self.action != "list":
             return queryset
         params = self.request.query_params
-        if params.get("date_from"):
-            queryset = queryset.filter(end_date__gte=params["date_from"])
-        if params.get("date_to"):
-            queryset = queryset.filter(start_date__lte=params["date_to"])
+        dates = CalendarRangeSerializer(
+            data={k: params[k] for k in ("date_from", "date_to") if params.get(k)}
+        )
+        dates.is_valid(raise_exception=True)
+        if dates.validated_data.get("date_from"):
+            queryset = queryset.filter(end_date__gte=dates.validated_data["date_from"])
+        if dates.validated_data.get("date_to"):
+            queryset = queryset.filter(start_date__lte=dates.validated_data["date_to"])
         if params.get("kind") in CalendarEvent.Kind.values:
             queryset = queryset.filter(kind=params["kind"])
         if params.get("level", "").isdigit():

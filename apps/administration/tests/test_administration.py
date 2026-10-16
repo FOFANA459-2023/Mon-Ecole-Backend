@@ -182,3 +182,9 @@ def test_official_documents_are_filed_under_the_school(school, director, teacher
     assert (
         teacher.get("/api/v1/documents/", {"owner_type": "school", "owner_id": school.pk}).status_code == 403
     )
+
+
+def test_a_malformed_date_filter_is_a_bad_request_not_a_crash(teacher):
+    response = teacher.get("/api/v1/calendar-events/", {"date_from": "date_from", "date_to": "2026-13-45"})
+    assert response.status_code == 400
+    assert set(response.data["fields"]) == {"date_from", "date_to"}

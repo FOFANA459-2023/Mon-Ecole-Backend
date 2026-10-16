@@ -306,3 +306,27 @@ def test_production_settings_are_hardened(monkeypatch):
     storage = prod.STORAGES["default"]["OPTIONS"]
     assert storage["querystring_auth"] is True and storage["default_acl"] is None
     assert storage["querystring_expire"] <= 600
+
+
+# The ZAP scan sends these in every query parameter; for `ordering` they must change nothing (DRF keeps only
+# known field names, and the ORM never sees the raw text). See .zap/rules.tsv.
+# ZAP's baseline is the word "ordering" (no such field), then the same word with SQL appended.
+ORDERING_PROBES = [
+    "ordering AND 1=1 --",
+    "ordering AND 1=2 --",
+    "ordering' OR '1'='1",
+    "ordering;DROP TABLE x",
+]
+LIST_ENDPOINTS = [path for method, path in ENDPOINTS if method == "get" and "/1/" not in path]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("path", LIST_ENDPOINTS)
+def test_ordering_never_reaches_sql(path, school, make_member, client_for, make_class):
+    make_class()  # something to list
+    client = client_for(make_member(school, "director"), school)
+    baseline = client.get(f"/{path}", {"ordering": "ordering"})
+    for probe in ORDERING_PROBES:
+        response = client.get(f"/{path}", {"ordering": probe})
+        assert response.status_code == baseline.status_code, f"/{path} ordering={probe!r}"
+        assert response.content == baseline.content, f"/{path} ordering={probe!r} changed the response"
