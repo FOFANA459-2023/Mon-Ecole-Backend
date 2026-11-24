@@ -237,6 +237,7 @@ class StaffSerializer(serializers.ModelSerializer):
     full_name = serializers.CharField(read_only=True)
     photo_url = serializers.SerializerMethodField()
     has_access = serializers.SerializerMethodField()
+    is_director = serializers.SerializerMethodField()
     employee_number = serializers.CharField(max_length=30, required=False, allow_blank=True)
     assignments = serializers.SerializerMethodField()
     department = TenantPrimaryKeyRelatedField(
@@ -267,6 +268,7 @@ class StaffSerializer(serializers.ModelSerializer):
             "status",
             "photo_url",
             "has_access",
+            "is_director",
             "assignments",
             "archived_at",
             "created_at",
@@ -278,6 +280,23 @@ class StaffSerializer(serializers.ModelSerializer):
 
     def get_has_access(self, obj) -> bool:
         return obj.user_id is not None
+
+    def get_is_director(self, obj) -> bool:
+        """Directors stay from one year to the next: only the platform owner changes their access."""
+        if obj.user_id is None:
+            return False
+        ids = self.context.get("_director_user_ids")
+        if ids is None:
+            from apps.accounts.models import Membership
+            from apps.accounts.permissions_registry import DIRECTOR
+
+            ids = set(
+                Membership.objects.filter(school_id=obj.school_id, roles__key=DIRECTOR).values_list(
+                    "user_id", flat=True
+                )
+            )
+            self.context["_director_user_ids"] = ids
+        return obj.user_id in ids
 
     @extend_schema_field(AssignmentsSerializer)
     def get_assignments(self, obj) -> dict:

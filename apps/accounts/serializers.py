@@ -7,7 +7,7 @@ from rest_framework import serializers
 from apps.schools.models import School
 
 from .models import Membership, Role
-from .permissions_registry import ALL_CODES
+from .permissions_registry import ALL_CODES, OWNER_CODES
 from .services import invitation_status
 
 User = get_user_model()
@@ -65,7 +65,7 @@ def me_payload(user, request) -> dict:
             {
                 "school": school_summary(s, request),
                 "roles": [{"id": None, "key": "platform_admin", "name": "Platform administrator"}],
-                "permissions": sorted(ALL_CODES),
+                "permissions": sorted(OWNER_CODES),
             }
             for s in others.select_related("settings")
         ]

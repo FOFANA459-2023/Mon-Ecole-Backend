@@ -26,7 +26,7 @@ def resolve_school_access(request) -> SchoolAccess:
         return cached
 
     from apps.accounts.models import Membership
-    from apps.accounts.permissions_registry import ALL_CODES
+    from apps.accounts.permissions_registry import OWNER_CODES
     from apps.schools.models import School
 
     user = request.user
@@ -47,7 +47,7 @@ def resolve_school_access(request) -> SchoolAccess:
             school = School.objects.filter(pk=int(raw), status=School.Status.ACTIVE).first()
             if school is None:
                 raise NotFound(_("School not found."))
-            access = SchoolAccess(school, None, ALL_CODES)
+            access = SchoolAccess(school, None, OWNER_CODES)
         else:
             raise NotFound(_("School not found."))
     else:

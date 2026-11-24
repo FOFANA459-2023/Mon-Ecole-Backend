@@ -1,7 +1,8 @@
 """The platform owner's view: every school on Mon École, registering new schools and their Directors.
 
 Only superusers (the owners of the platform) reach these endpoints. They are not school members; inside a
-school they act with a Director's permissions (see core.tenancy).
+school they see everything but never manage its staff (see OWNER_CODES): the Director does. Here they
+register, suspend and delete schools, and add, suspend, restore or remove Directors.
 """
 
 import re
@@ -19,7 +20,14 @@ from rest_framework.response import Response
 
 from apps.accounts.models import Membership, Role
 from apps.accounts.permissions_registry import DIRECTOR
-from apps.accounts.services import add_member, invitation_status, is_activated, resend_invitation
+from apps.accounts.services import (
+    add_member,
+    invitation_status,
+    is_activated,
+    remove_member,
+    resend_invitation,
+    update_member,
+)
 from apps.audit import services as audit
 from apps.people.models import Student
 
@@ -38,6 +46,7 @@ class DirectorSerializer(serializers.Serializer):
     email = serializers.EmailField()
     phone = serializers.CharField()
     account_status = serializers.ChoiceField(choices=["active", "pending", "expired"])
+    is_active = serializers.BooleanField(help_text="False: suspended by the platform owner.")
 
 
 class PlatformSchoolSerializer(serializers.ModelSerializer):
@@ -72,6 +81,7 @@ class PlatformSchoolSerializer(serializers.ModelSerializer):
                 "email": m.user.email,
                 "phone": m.user.phone,
                 "account_status": invitation_status(m.user),
+                "is_active": m.is_active,
             }
             for m in getattr(obj, "director_memberships", [])
         ]
@@ -111,7 +121,16 @@ class RegisterSchoolSerializer(serializers.Serializer):
 
 
 class SchoolStatusSerializer(serializers.Serializer):
-    status = serializers.ChoiceField(choices=School.Status.choices)
+    status = serializers.ChoiceField(choices=[School.Status.ACTIVE, School.Status.SUSPENDED])
+
+
+class DeleteSchoolSerializer(serializers.Serializer):
+    confirm_code = serializers.CharField(help_text="The school's code, typed again.")
+
+
+class DirectorActionSerializer(serializers.Serializer):
+    user_id = serializers.IntegerField(help_text="The Director's id, as listed in `directors`.")
+    action = serializers.ChoiceField(choices=["suspend", "restore", "remove"])
 
 
 class PlatformSchoolViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
@@ -127,7 +146,10 @@ class PlatformSchoolViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vi
 
     def get_queryset(self):
         directors = (
-            Membership.objects.filter(is_active=True, roles__key=DIRECTOR).select_related("user").distinct()
+            Membership.objects.filter(roles__key=DIRECTOR)
+            .select_related("user")
+            .order_by("-is_active", "user__last_name")
+            .distinct()
         )
         students = (
             Student.objects.filter(school=OuterRef("pk"), status=Student.Status.ACTIVE)
@@ -170,6 +192,8 @@ class PlatformSchoolViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vi
         serializer = SchoolStatusSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         new_status = serializer.validated_data["status"]
+        if school.status == School.Status.DELETING:
+            raise ValidationError(_("This school is being deleted."))
         if new_status != school.status:
             old_status = school.status
             school.status = new_status
@@ -198,3 +222,76 @@ class PlatformSchoolViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vi
         for membership in pending:
             resend_invitation(membership, request=request)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def _membership(self, school, user_id):
+        membership = Membership.objects.filter(school=school, user_id=user_id, roles__key=DIRECTOR).first()
+        if membership is None:
+            raise ValidationError(_("This person is not a Director of this school."))
+        return membership
+
+    def _fresh(self, school):
+        return Response(self.get_serializer(self.get_queryset().get(pk=school.pk)).data)
+
+    @extend_schema(request=NewDirectorSerializer, responses={201: PlatformSchoolSerializer})
+    @action(detail=True, methods=["post"], url_path="directors")
+    def add_director(self, request, pk=None):
+        """Give the school another Director (an invitation is sent)."""
+        school = self.get_object()
+        serializer = NewDirectorSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        add_member(
+            school,
+            **serializer.validated_data,
+            language=school.default_language,
+            roles=[Role.objects.get(school=school, key=DIRECTOR)],
+            request=request,
+        )
+        response = self._fresh(school)
+        response.status_code = status.HTTP_201_CREATED
+        return response
+
+    @extend_schema(request=DirectorActionSerializer, responses=PlatformSchoolSerializer)
+    @action(detail=True, methods=["post"], url_path="directors/change")
+    def change_director(self, request, pk=None):
+        """Suspend a Director (they can no longer sign in to this school), restore them, or remove them."""
+        school = self.get_object()
+        serializer = DirectorActionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        membership = self._membership(school, serializer.validated_data["user_id"])
+        match serializer.validated_data["action"]:
+            case "suspend":
+                update_member(membership, is_active=False, request=request)
+            case "restore":
+                update_member(membership, is_active=True, request=request)
+            case "remove":
+                remove_member(membership, request=request)
+        return self._fresh(school)
+
+    @extend_schema(request=DeleteSchoolSerializer, responses={202: PlatformSchoolSerializer})
+    @action(detail=True, methods=["post"], url_path="delete")
+    def delete_school(self, request, pk=None):
+        """Delete a suspended school and all its data, in the background. Cannot be undone."""
+        from .tasks import erase_school_task
+
+        school = self.get_object()
+        serializer = DeleteSchoolSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        if school.status != School.Status.SUSPENDED:
+            raise ValidationError(_("Suspend the school first: only a suspended school can be deleted."))
+        if serializer.validated_data["confirm_code"].strip().lower() != school.code:
+            raise ValidationError({"confirm_code": [_("Type the school's code exactly to confirm.")]})
+        school.status = School.Status.DELETING
+        school.save(update_fields=["status", "updated_at"])
+        audit.record(
+            "delete",
+            request=request,
+            school=None,
+            module="platform",
+            entity_type="school",
+            entity_id=school.pk,
+            summary=f"Deletion started: {school.name} ({school.code})",
+        )
+        transaction.on_commit(lambda: erase_school_task.delay(school.pk))
+        response = self._fresh(school)
+        response.status_code = status.HTTP_202_ACCEPTED
+        return response
