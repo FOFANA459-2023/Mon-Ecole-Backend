@@ -12,7 +12,7 @@ import shutil
 import subprocess  # noqa: S404 — runs pg_dump with fixed arguments
 import tempfile
 from datetime import timedelta
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 
 from django.conf import settings
 from django.core.files import File
@@ -37,11 +37,11 @@ def _pg_dump(target: str) -> None:
             "--no-privileges",
             f"--host={parts.hostname}",
             f"--port={parts.port or 5432}",
-            f"--username={parts.username}",
+            f"--username={unquote(parts.username or '')}",
             f"--dbname={parts.path.lstrip('/')}",
             f"--file={target}",
         ]
-        environment["PGPASSWORD"] = parts.password or ""
+        environment["PGPASSWORD"] = unquote(parts.password or "")  # "%40" in a URL is "@"
     else:
         db = settings.DATABASES["default"]
         command = [

@@ -46,11 +46,12 @@ def test_pg_dump_gets_the_connection_without_the_password_on_the_command_line(
 
     monkeypatch.setattr("apps.backups.services.subprocess.run", fake_run)
     monkeypatch.setattr("apps.backups.services.connection.vendor", "postgresql")
-    settings.BACKUP_DATABASE_URL = "postgres://backup:s3cret@db.example.supabase.co:5432/postgres"
+    settings.BACKUP_DATABASE_URL = "postgres://backup.ref:s3%40cret@db.example.supabase.co:5432/postgres"
     backup = services.run(Backup.objects.create())
     assert backup.status == "done" and backup.engine == "postgresql" and backup.file.name.endswith(".dump")
     assert "--host=db.example.supabase.co" in calls["command"] and "--format=custom" in calls["command"]
-    assert calls["password"] == "s3cret" and not any("s3cret" in part for part in calls["command"])
+    assert "--username=backup.ref" in calls["command"]
+    assert calls["password"] == "s3@cret" and not any("s3" in part for part in calls["command"])
 
 
 def test_a_failing_dump_is_recorded_without_its_details(monkeypatch, settings):
