@@ -117,7 +117,8 @@ class TestCheck:
         school.settings.save()
         assert alerts.check_school(school, TODAY)["cleared"] == 1
 
-    def test_the_nightly_task_checks_every_active_school(self, setup, school, other_school):
+    def test_the_nightly_task_checks_every_active_school(self, setup, school, other_school, monkeypatch):
+        monkeypatch.setattr(alerts, "school_today", lambda school: TODAY)
         for day in days_ago(1, 2, 3):
             mark(school, setup["e"]["Awa"], day)
         assert tasks.check_absenteeism() == 1
