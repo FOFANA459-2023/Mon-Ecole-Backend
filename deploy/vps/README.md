@@ -8,12 +8,16 @@ for photos, documents, report cards and backups. Replaces the AWS setup in `infr
 
 ## First setup
 
-1. **Server** — Hetzner Cloud → *Add server*: Nuremberg or Falkenstein, Ubuntu 24.04, *Arm64 → CAX11*
-   (or *x86 → CX22*), public IPv4, the SSH key `~/.ssh/mon-ecole-deploy.pub`, a firewall allowing TCP 22/80/443.
-   Then prepare it:
+1. **Server** — with Terraform (`infra/hetzner`): create an API token (Hetzner console → the project →
+   *Security → API tokens → Read & Write*), then
    ```
-   ssh -i ~/.ssh/mon-ecole-deploy root@<ip> 'bash -s' < deploy/vps/setup.sh
+   cd infra/hetzner
+   HCLOUD_TOKEN=<token> terraform apply
    ```
+   It creates the server (Nuremberg, Arm CAX11, Ubuntu 24.04), the firewall (22/80/443) and adds the SSH key
+   `~/.ssh/mon-ecole-deploy.pub`; the first boot runs `deploy/vps/setup.sh` (Docker, updates, swap).
+   `terraform output` gives `VPS_HOST` and `API_HOST`. By hand instead: create the same server in the console,
+   then `ssh -i ~/.ssh/mon-ecole-deploy root@<ip> 'bash -s' < deploy/vps/setup.sh`.
 
 2. **Supabase Storage** — Supabase → *Storage* → *New bucket* `mon-ecole-media`, **private**. Then
    *Project settings → Storage → S3 access keys* → *New access key*; note the endpoint, region, key id and secret.
