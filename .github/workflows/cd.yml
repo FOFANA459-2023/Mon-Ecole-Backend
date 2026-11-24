@@ -83,6 +83,8 @@ jobs:
     with:
       environment: staging
       image: ${{ needs.image.outputs.image }}
+    # The deploy reads the environment's secrets (VPS_SSH_KEY, APP_ENV...): a called workflow gets none unless passed.
+    secrets: inherit
     permissions:
       contents: read
       packages: read
@@ -95,6 +97,8 @@ jobs:
     with:
       environment: production
       image: ${{ needs.image.outputs.image }}
+    # The deploy reads the environment's secrets (VPS_SSH_KEY, APP_ENV...): a called workflow gets none unless passed.
+    secrets: inherit
     permissions:
       contents: read
       packages: read
