@@ -1,12 +1,16 @@
-# Deploy one image to an AWS environment: copy it from GHCR to ECR, run the database migrations, then restart
-# the api, worker and beat. Called by CD; can also be run by hand from the Actions tab to redeploy or roll back
-# (give an older image tag).
+# Deploy one image: run the database migrations, then restart the api, worker and beat. Called by CD; can also
+# be run by hand from the Actions tab to redeploy or roll back (give an older image tag).
 #
-# Two targets, chosen by the environment's variables:
-#   - single EC2 instance (infra/aws, the free-tier setup): set EC2_INSTANCE_ID;
-#   - ECS Fargate services (the planned setup): leave EC2_INSTANCE_ID unset and set the ECS_* variables.
+# Three targets, chosen by the environment's variables:
+#   - a VPS reached over SSH (deploy/vps, the current setup): set VPS_HOST;
+#   - single EC2 instance (infra/aws): leave VPS_HOST unset, set EC2_INSTANCE_ID;
+#   - ECS Fargate services: leave both unset and set the ECS_* variables.
 #
-# Variables of each GitHub environment (Settings → Environments → staging / production → Variables):
+# VPS target (Settings → Environments → production):
+#   variables  VPS_HOST (server IP or name), API_HOST (e.g. api.203-0-113-7.sslip.io), VPS_USER (default root)
+#   secrets    VPS_SSH_KEY (private key), VPS_KNOWN_HOSTS (`ssh-keyscan <host>` output), APP_ENV (the app.env file)
+#
+# AWS targets: copy the image from GHCR to ECR first. Variables of each GitHub environment:
 #   AWS_REGION             e.g. eu-west-3
 #   AWS_DEPLOY_ROLE_ARN    IAM role that trusts GitHub OIDC for this repository and environment
 #   ECR_REPOSITORY         e.g. 123456789012.dkr.ecr.eu-west-3.amazonaws.com/mon-ecole-backend
@@ -54,18 +58,34 @@ jobs:
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v7
+      - name: Migrate and restart (VPS)
+        if: vars.VPS_HOST != ''
+        env:
+          VPS_HOST: ${{ vars.VPS_HOST }}
+          VPS_USER: ${{ vars.VPS_USER }}
+          API_HOST: ${{ vars.API_HOST }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+          APP_ENV: ${{ secrets.APP_ENV }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash .github/scripts/deploy-vps.sh "${{ inputs.image }}"
       - uses: aws-actions/configure-aws-credentials@v6
+        if: vars.VPS_HOST == ''
         with:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
       - uses: aws-actions/amazon-ecr-login@v2
+        if: vars.VPS_HOST == ''
       - uses: docker/login-action@v4
+        if: vars.VPS_HOST == ''
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - uses: docker/setup-buildx-action@v4
+        if: vars.VPS_HOST == ''
       - name: Copy the image to ECR
+        if: vars.VPS_HOST == ''
         id: copy
         env:
           SOURCE: ${{ inputs.image }}
@@ -75,13 +95,13 @@ jobs:
           docker buildx imagetools create --tag "$target" "$SOURCE"
           echo "image=$target" >> "$GITHUB_OUTPUT"
       - name: Migrate and restart (EC2)
-        if: vars.EC2_INSTANCE_ID != ''
+        if: vars.VPS_HOST == '' && vars.EC2_INSTANCE_ID != ''
         env:
           EC2_INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
           DEPLOY_ENVIRONMENT: ${{ inputs.environment }}
         run: bash .github/scripts/deploy-ec2.sh "${{ steps.copy.outputs.image }}"
       - name: Migrate and roll out (ECS)
-        if: vars.EC2_INSTANCE_ID == ''
+        if: vars.VPS_HOST == '' && vars.EC2_INSTANCE_ID == ''
         env:
           ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
           ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
