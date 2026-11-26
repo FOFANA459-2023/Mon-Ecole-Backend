@@ -1279,8 +1279,11 @@ class Builder:
                 finance.reverse_payment(duplicate, reason="Saisie en double" if self.fr else "Entered twice")
                 self.note("reversed payments")
         # A uniform invoice issued by mistake, then cancelled and issued again.
-        # (someone with nothing paid, so no credit settles the invoice before it is cancelled)
-        target = next(s for s in reversed(students) if s.pk not in paid and s != rich)
+        # (someone without credit, so no credit settles the invoice before it is cancelled: a student whose
+        # older payments exceed what is due today has some, whatever was recorded this year)
+        target = next(
+            s for s in reversed(students) if s.pk not in paid and s != rich and student_credit(s) == 0
+        )
         lines = [
             {
                 "category": self.categories["uniform"],
