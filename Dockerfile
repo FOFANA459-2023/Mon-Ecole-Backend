@@ -13,7 +13,11 @@ ENV DJANGO_SETTINGS_MODULE=config.settings.production
 
 # Pango/HarfBuzz/fonts are needed by WeasyPrint for report-card and receipt PDFs.
 # `upgrade` applies Debian security fixes published after the base image was built (e.g. OpenSSL).
-RUN apt-get update \
+# CI passes today's date: a new value re-runs this step (and the ones after it) instead of reusing a
+# cached layer that predates the latest fixes. At most one rebuild a day.
+ARG SECURITY_UPDATES=manual
+RUN echo "Debian security updates: ${SECURITY_UPDATES}" \
+    && apt-get update \
     && apt-get upgrade -y \
     && apt-get install -y --no-install-recommends \
         libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz0b libharfbuzz-subset0 \

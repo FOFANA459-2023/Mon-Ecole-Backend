@@ -56,10 +56,14 @@ jobs:
             type=ref,event=branch
             type=semver,pattern={{version}}
             type=raw,value=latest,enable={{is_default_branch}}
+      - name: Today's date (refreshes the image's security updates once a day)
+        id: day
+        run: echo "date=$(date -u +%F)" >> "$GITHUB_OUTPUT"
       - id: build
         uses: docker/build-push-action@v7
         with:
           context: .
+          build-args: SECURITY_UPDATES=${{ steps.day.outputs.date }}
           # arm64 for AWS Fargate (Graviton), amd64 for local machines and other hosts.
           platforms: linux/amd64,linux/arm64
           push: true
