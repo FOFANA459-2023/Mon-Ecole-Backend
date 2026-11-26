@@ -9,6 +9,7 @@ from apps.accounts.models import Membership
 from apps.audit.models import AuditLog
 from apps.people.models import StaffMember
 from apps.schools.models import School
+from conftest import PASSWORD
 
 pytestmark = pytest.mark.django_db
 PLATFORM = "/api/v1/platform/schools/"
@@ -55,6 +56,77 @@ class TestDirectorRunsTheTeam:
         assert not membership(teacher, school).is_active
         assert director.post(f"/api/v1/staff/{staff.pk}/restore/").status_code == 200
         assert membership(teacher, school).is_active
+
+
+def sign_in(user, password):
+    from rest_framework.test import APIClient
+
+    return APIClient().post("/api/v1/auth/login/", {"login": user.email, "password": password}, format="json")
+
+
+class TestForgottenPasswords:
+    """No email: the Director hands their staff a temporary password, the platform owner does it for
+    Directors, and the person chooses their own at the next sign-in."""
+
+    def test_director_resets_a_teachers_password(self, school, make_member, client_for):
+        director = client_for(make_member(school, "director"), school)
+        teacher = make_member(school, "teacher")
+        url = f"/api/v1/users/{membership(teacher, school).pk}/reset-password/"
+        assert director.post(url, {"new_password": "123"}, format="json").status_code == 400
+        assert director.post(url, {"new_password": "Temporary-Pass-2026"}, format="json").status_code == 204
+
+        assert sign_in(teacher, PASSWORD).status_code == 401
+        response = sign_in(teacher, "Temporary-Pass-2026")
+        assert response.status_code == 200
+        assert response.data["user"]["must_change_password"] is True
+        assert AuditLog.objects.filter(module="users", action="password_reset").exists()
+
+    def test_works_for_someone_who_never_received_the_invitation_email(self, school, make_member, client_for):
+        director = client_for(make_member(school, "director"), school)
+        teacher = make_member(school, "teacher")
+        teacher.email_verified_at = None
+        teacher.save(update_fields=["email_verified_at"])
+        url = f"/api/v1/users/{membership(teacher, school).pk}/reset-password/"
+        assert director.post(url, {"new_password": "Temporary-Pass-2026"}, format="json").status_code == 204
+        assert sign_in(teacher, "Temporary-Pass-2026").status_code == 200
+
+    def test_director_cannot_reset_a_director_or_themselves(self, school, make_member, client_for):
+        me = make_member(school, "director")
+        other = make_member(school, "director", email="second.director@test.local")
+        client = client_for(me, school)
+        for person in (me, other):
+            url = f"/api/v1/users/{membership(person, school).pk}/reset-password/"
+            assert client.post(url, {"new_password": "Temporary-Pass-2026"}, format="json").status_code == 400
+        assert sign_in(other, PASSWORD).status_code == 200
+
+    def test_nor_a_teacher_who_directs_another_school(self, school, other_school, make_member, client_for):
+        director = client_for(make_member(school, "director"), school)
+        teacher = make_member(school, "teacher")
+        Membership.objects.create(user=teacher, school=other_school).roles.set(
+            other_school.roles.filter(key="director")
+        )
+        url = f"/api/v1/users/{membership(teacher, school).pk}/reset-password/"
+        assert director.post(url, {"new_password": "Temporary-Pass-2026"}, format="json").status_code == 400
+
+    def test_teachers_cannot_reset_anyone(self, school, make_member, client_for):
+        teacher = make_member(school, "teacher")
+        colleague = make_member(school, "teacher", email="colleague@test.local")
+        url = f"/api/v1/users/{membership(colleague, school).pk}/reset-password/"
+        client = client_for(teacher, school)
+        response = client.post(url, {"new_password": "Temporary-Pass-2026"}, format="json")
+        assert response.status_code == 403
+
+    def test_platform_owner_resets_a_directors_password(self, school, owner, make_member, client_for):
+        director = make_member(school, "director")
+        client = client_for(owner)
+        url = f"{PLATFORM}{school.pk}/directors/reset-password/"
+        body = {"user_id": director.pk, "new_password": "Temporary-Pass-2026"}
+        assert client.post(url, body, format="json").status_code == 204
+        assert sign_in(director, "Temporary-Pass-2026").data["user"]["must_change_password"] is True
+
+        teacher = make_member(school, "teacher")
+        body = {"user_id": teacher.pk, "new_password": "Temporary-Pass-2026"}
+        assert client.post(url, body, format="json").status_code == 400
 
 
 class TestNewSchoolYear:

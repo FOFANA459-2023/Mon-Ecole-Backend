@@ -1,13 +1,8 @@
 from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.models import update_last_login
-from django.contrib.auth.password_validation import validate_password
-from django.contrib.auth.tokens import default_token_generator
-from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Count, Q
 from django.utils import timezone
-from django.utils.encoding import force_str
-from django.utils.http import urlsafe_base64_decode
 from django.utils.translation import gettext_lazy as _
 from drf_spectacular.utils import extend_schema
 from rest_framework import mixins, status, viewsets
@@ -40,8 +35,7 @@ from .serializers import (
     MemberSerializer,
     MemberUpdateSerializer,
     MeUpdateSerializer,
-    PasswordResetConfirmSerializer,
-    PasswordResetRequestSerializer,
+    ResetPasswordSerializer,
     RoleSerializer,
     VerifyEmailSerializer,
     me_payload,
@@ -237,55 +231,6 @@ class ChangePasswordView(APIView):
         return _session_response(user, request)
 
 
-class PasswordResetRequestView(PublicAuthView):
-    throttle_classes = [ScopedRateThrottle]
-    throttle_scope = "password_reset"
-
-    @extend_schema(request=PasswordResetRequestSerializer, responses={204: None})
-    def post(self, request):
-        serializer = PasswordResetRequestSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = User.objects.filter(email__iexact=serializer.validated_data["email"], is_active=True).first()
-        if user is not None:
-            services.send_password_email(user)
-            _audit_for_user_schools("password_reset_request", user, summary="Password reset requested")
-        # Same answer whether or not the account exists.
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-class PasswordResetConfirmView(PublicAuthView):
-    throttle_classes = [ScopedRateThrottle]
-    throttle_scope = "password_reset"
-
-    @extend_schema(request=PasswordResetConfirmSerializer, responses={204: None})
-    def post(self, request):
-        serializer = PasswordResetConfirmSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-        invalid = ValidationError({"token": [_("This link is invalid or has expired.")]})
-        try:
-            user = User.objects.get(pk=force_str(urlsafe_base64_decode(data["uid"])), is_active=True)
-        except (User.DoesNotExist, ValueError, TypeError, OverflowError):
-            raise invalid from None
-        if not default_token_generator.check_token(user, data["token"]):
-            raise invalid
-        try:
-            validate_password(data["new_password"], user)
-        except DjangoValidationError as exc:
-            raise ValidationError({"new_password": list(exc.messages)}) from None
-        user.set_password(data["new_password"])
-        user.must_change_password = False
-        user.invitation_expires_at = None
-        # The link arrived by email, so the address is confirmed too.
-        user.email_verified_at = user.email_verified_at or timezone.now()
-        user.save(
-            update_fields=["password", "must_change_password", "invitation_expires_at", "email_verified_at"]
-        )
-        services.revoke_refresh_tokens(user)
-        _audit_for_user_schools("password_reset", user, summary="Password reset completed")
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-
 class VerifyEmailView(PublicAuthView):
     """The link in an invitation email: confirms the address, then the person signs in with the temporary
     password and chooses their own."""
@@ -410,6 +355,16 @@ class MemberViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.G
     @action(detail=True, methods=["post"], url_path="send-invite")
     def send_invite(self, request, pk=None):
         services.resend_invitation(self.get_object(), request=request)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @extend_schema(request=ResetPasswordSerializer, responses={204: None})
+    @action(detail=True, methods=["post"], url_path="reset-password")
+    def reset_password(self, request, pk=None):
+        """Give someone who forgot their password a temporary one, handed over in person (never by email).
+        They choose their own at the next sign-in. Not for Directors: the platform owner resets theirs."""
+        serializer = ResetPasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        services.reset_password(self.get_object(), serializer.validated_data["new_password"], request=request)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @extend_schema(request=None, responses={204: None})

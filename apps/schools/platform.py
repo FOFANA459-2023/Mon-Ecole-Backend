@@ -2,7 +2,8 @@
 
 Only superusers (the owners of the platform) reach these endpoints. They are not school members; inside a
 school they see everything but never manage its staff (see OWNER_CODES): the Director does. Here they
-register, suspend and delete schools, and add, suspend, restore or remove Directors.
+register, suspend and delete schools, and add, suspend, restore or remove Directors (or reset a
+Director's forgotten password).
 """
 
 import re
@@ -26,6 +27,7 @@ from apps.accounts.services import (
     is_activated,
     remove_member,
     resend_invitation,
+    reset_password,
     update_member,
 )
 from apps.audit import services as audit
@@ -131,6 +133,14 @@ class DeleteSchoolSerializer(serializers.Serializer):
 class DirectorActionSerializer(serializers.Serializer):
     user_id = serializers.IntegerField(help_text="The Director's id, as listed in `directors`.")
     action = serializers.ChoiceField(choices=["suspend", "restore", "remove"])
+
+
+class DirectorPasswordSerializer(serializers.Serializer):
+    user_id = serializers.IntegerField(help_text="The Director's id, as listed in `directors`.")
+    new_password = serializers.CharField(
+        trim_whitespace=False,
+        help_text="A temporary password, handed over in person; changed at next sign-in.",
+    )
 
 
 class PlatformSchoolViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
@@ -266,6 +276,17 @@ class PlatformSchoolViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, vi
             case "remove":
                 remove_member(membership, request=request)
         return self._fresh(school)
+
+    @extend_schema(request=DirectorPasswordSerializer, responses={204: None})
+    @action(detail=True, methods=["post"], url_path="directors/reset-password")
+    def reset_director_password(self, request, pk=None):
+        """A Director forgot their password: set a temporary one, handed over in person (never by email)."""
+        school = self.get_object()
+        serializer = DirectorPasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        membership = self._membership(school, serializer.validated_data["user_id"])
+        reset_password(membership, serializer.validated_data["new_password"], request=request)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @extend_schema(request=DeleteSchoolSerializer, responses={202: PlatformSchoolSerializer})
     @action(detail=True, methods=["post"], url_path="delete")
