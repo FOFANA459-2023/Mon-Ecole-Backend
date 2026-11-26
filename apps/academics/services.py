@@ -78,6 +78,42 @@ def create_academic_year(
 
 
 @transaction.atomic
+def renew_staff(school, *, continuing_ids: set[int], year: AcademicYear, request=None) -> int:
+    """The new school year's team: every active staff member not kept is archived as having left, and
+    their sign-in to this school is suspended. Directors are never touched here (only the platform owner
+    changes a Director's access), nor is the person doing it. Returns how many left."""
+    from apps.accounts.models import Membership
+    from apps.accounts.permissions_registry import DIRECTOR
+    from apps.people.models import StaffMember
+    from apps.people.services import set_staff_status
+
+    director_users = Membership.objects.filter(school=school, roles__key=DIRECTOR).values("user_id")
+    acting = getattr(getattr(request, "user", None), "pk", None)
+    leaving = (
+        StaffMember.objects.filter(school=school, status=StaffMember.Status.ACTIVE)
+        .exclude(pk__in=continuing_ids)
+        .exclude(user_id__in=director_users)
+    )
+    if acting is not None:
+        leaving = leaving.exclude(user_id=acting)
+    names = []
+    for staff in leaving:
+        set_staff_status(staff, archived=True, request=request)
+        names.append(staff.full_name)
+    if names:
+        audit.record(
+            "update",
+            request=request,
+            school=school,
+            instance=year,
+            module="staff",
+            summary=f"{len(names)} staff member(s) not renewed for {year.name}",
+            new={"left": names},
+        )
+    return len(names)
+
+
+@transaction.atomic
 def set_current_year(year: AcademicYear, *, request=None) -> AcademicYear:
     previous = current_year(year.school)
     if previous == year:

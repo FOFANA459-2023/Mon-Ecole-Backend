@@ -150,9 +150,8 @@ paths:
     post:
       operationId: academic_years_set_current_create
       description: |-
-        CRUD for school-owned records: scoped to the current school, audited on every write.
-
-        Subclasses set `queryset`, `serializer_class`, `required_permissions` and `audit_module`.
+        Make this the current year. With `continuing_staff_ids`, it also renews the team: active staff
+        not in the list are archived as having left and lose their access (needs staff.archive).
       parameters:
       - in: path
         name: id
@@ -162,6 +161,17 @@ paths:
         required: true
       tags:
       - academic-years
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartYearRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StartYearRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StartYearRequest'
       security:
       - jwtAuth: []
       responses:
@@ -5040,10 +5050,12 @@ paths:
           type: string
           enum:
           - active
+          - deleting
           - suspended
         description: |-
           * `active` - Active
           * `suspended` - Suspended
+          * `deleting` - Being deleted
       tags:
       - platform
       security:
@@ -5098,6 +5110,110 @@ paths:
         required: true
       tags:
       - platform
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformSchool'
+          description: ''
+  /api/v1/platform/schools/{id}/delete/:
+    post:
+      operationId: platform_schools_delete_create
+      description: Delete a suspended school and all its data, in the background.
+        Cannot be undone.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this school.
+        required: true
+      tags:
+      - platform
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteSchoolRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DeleteSchoolRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DeleteSchoolRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformSchool'
+          description: ''
+  /api/v1/platform/schools/{id}/directors/:
+    post:
+      operationId: platform_schools_directors_create
+      description: Give the school another Director (an invitation is sent).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this school.
+        required: true
+      tags:
+      - platform
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewDirectorRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/NewDirectorRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/NewDirectorRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformSchool'
+          description: ''
+  /api/v1/platform/schools/{id}/directors/change/:
+    post:
+      operationId: platform_schools_directors_change_create
+      description: Suspend a Director (they can no longer sign in to this school),
+        restore them, or remove them.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this school.
+        required: true
+      tags:
+      - platform
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DirectorActionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DirectorActionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DirectorActionRequest'
+        required: true
       security:
       - jwtAuth: []
       responses:
@@ -7401,6 +7517,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/Member'
           description: ''
+    delete:
+      operationId: users_destroy
+      description: Remove from the school for good (to suspend, set is_active to false
+        instead).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this membership.
+        required: true
+      tags:
+      - users
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/users/{id}/send-invite/:
     post:
       operationId: users_send_invite_create
@@ -7587,6 +7721,16 @@ components:
         * `active` - active
         * `pending` - pending
         * `expired` - expired
+    ActionEnum:
+      enum:
+      - suspend
+      - restore
+      - remove
+      type: string
+      description: |-
+        * `suspend` - suspend
+        * `restore` - restore
+        * `remove` - remove
     Announcement:
       type: object
       properties:
@@ -8713,6 +8857,15 @@ components:
       required:
       - date
       - status
+    DeleteSchoolRequest:
+      type: object
+      properties:
+        confirm_code:
+          type: string
+          minLength: 1
+          description: The school's code, typed again.
+      required:
+      - confirm_code
     Department:
       type: object
       properties:
@@ -8768,12 +8921,27 @@ components:
           type: string
         account_status:
           $ref: '#/components/schemas/AccountStatusEnum'
+        is_active:
+          type: boolean
+          description: 'False: suspended by the platform owner.'
       required:
       - account_status
       - email
       - full_name
       - id
+      - is_active
       - phone
+    DirectorActionRequest:
+      type: object
+      properties:
+        user_id:
+          type: integer
+          description: The Director's id, as listed in `directors`.
+        action:
+          $ref: '#/components/schemas/ActionEnum'
+      required:
+      - action
+      - user_id
     DiscountKindEnum:
       enum:
       - percent
@@ -13404,17 +13572,27 @@ components:
       enum:
       - active
       - suspended
+      - deleting
       type: string
       description: |-
         * `active` - Active
         * `suspended` - Suspended
+        * `deleting` - Being deleted
     SchoolStatusRequest:
       type: object
       properties:
         status:
-          $ref: '#/components/schemas/SchoolStatusEnum'
+          $ref: '#/components/schemas/SchoolStatusStatusEnum'
       required:
       - status
+    SchoolStatusStatusEnum:
+      enum:
+      - active
+      - suspended
+      type: string
+      description: |-
+        * `active` - active
+        * `suspended` - suspended
     SheetAssessment:
       type: object
       properties:
@@ -13599,6 +13777,11 @@ components:
         has_access:
           type: boolean
           readOnly: true
+        is_director:
+          type: boolean
+          description: 'Directors stay from one year to the next: only the platform
+            owner changes their access.'
+          readOnly: true
         assignments:
           allOf:
           - $ref: '#/components/schemas/Assignments'
@@ -13621,6 +13804,7 @@ components:
       - full_name
       - has_access
       - id
+      - is_director
       - last_name
       - photo_url
       - status
@@ -13785,6 +13969,15 @@ components:
         * `teacher` - Teacher
         * `administrative` - Administrative
         * `support` - Support
+    StartYearRequest:
+      type: object
+      properties:
+        continuing_staff_ids:
+          type: array
+          items:
+            type: integer
+          description: Staff who stay this year. Omit to change the current year without
+            touching the team.
     Stats:
       type: object
       properties:

@@ -11,67 +11,23 @@ created: the platform owner sees every school with Director rights.
 
 import time
 
-from django.apps import apps
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
-from django.db import transaction
-from django.db.models import ProtectedError, RestrictedError
 
 from apps.schools.models import School
+from apps.schools.services import EraseIncomplete, erase_school
 
 from ._showcase import SHOWCASE_PREFIX, SPECS, build_school
 
 
-def _school_models():
-    """(model, lookup) for every table that belongs to a school: directly (a `school` foreign key), or
-    through a parent that does (payment allocations, invoice lines...)."""
-    direct = []
-    for model in apps.get_models():
-        for field in model._meta.concrete_fields:
-            if field.is_relation and field.related_model is School:
-                direct.append((model, field.name))
-    tenant_models = {model for model, _ in direct}
-    children = []
-    for model in apps.get_models():
-        if model in tenant_models or model is School:
-            continue
-        for field in model._meta.concrete_fields:
-            if field.is_relation and field.many_to_one and field.related_model in tenant_models:
-                lookup = next(name for m, name in direct if m is field.related_model)
-                children.append((model, f"{field.name}__{lookup}"))
-    return children + direct
-
-
-@transaction.atomic
 def delete_school(school: School) -> dict[str, int]:
-    """Remove one showcase school and every row that belongs to it.
-
-    Tenant tables protect each other (payments protect invoices, grades protect enrolments...), so rows are
-    deleted in passes until nothing is left; each pass removes whatever no longer has a protector.
-    """
+    """Remove one showcase school and every row that belongs to it."""
     if not school.code.startswith(SHOWCASE_PREFIX):
         raise CommandError(f"{school.code} is not a showcase school.")
-    removed: dict[str, int] = {}
-    models = _school_models()
-    for _ in range(40):
-        remaining = 0
-        for model, field in models:
-            rows = model._base_manager.filter(**{field: school})
-            if not rows.exists():
-                continue
-            try:
-                with transaction.atomic():
-                    _, per_model = rows.delete()
-                for label, count in per_model.items():
-                    removed[label] = removed.get(label, 0) + count
-            except (ProtectedError, RestrictedError):
-                remaining += 1
-        if remaining == 0:
-            break
-    else:
-        raise CommandError(f"Could not remove everything from {school.code}.")
-    school.delete()
-    return removed
+    try:
+        return erase_school(school)
+    except EraseIncomplete as error:
+        raise CommandError(str(error)) from error
 
 
 class Command(BaseCommand):

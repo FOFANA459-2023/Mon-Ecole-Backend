@@ -1,6 +1,10 @@
+from django.db import transaction
 from django.db.models import Count, Q
+from django.utils.translation import gettext as _
 from drf_spectacular.utils import extend_schema
+from rest_framework import serializers
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
 from apps.core.pdf import pdf_response
@@ -19,6 +23,14 @@ from .serializers import (
 )
 
 MANAGE_SETTINGS = ["settings.manage"]
+
+
+class StartYearSerializer(serializers.Serializer):
+    continuing_staff_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        required=False,
+        help_text="Staff who stay this year. Omit to change the current year without touching the team.",
+    )
 
 
 class AcademicYearViewSet(TenantModelViewSet):
@@ -46,10 +58,22 @@ class AcademicYearViewSet(TenantModelViewSet):
             request=self.request,
         )
 
-    @extend_schema(request=None, responses=AcademicYearSerializer)
+    @extend_schema(request=StartYearSerializer, responses=AcademicYearSerializer)
     @action(detail=True, methods=["post"], url_path="set-current")
     def set_current(self, request, pk=None):
-        year = services.set_current_year(self.get_object(), request=request)
+        """Make this the current year. With `continuing_staff_ids`, it also renews the team: active staff
+        not in the list are archived as having left and lose their access (needs staff.archive)."""
+        serializer = StartYearSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        continuing = serializer.validated_data.get("continuing_staff_ids")
+        if continuing is not None and "staff.archive" not in request.permission_codes:
+            raise PermissionDenied(_("Only the school's management can renew the staff."))
+        with transaction.atomic():
+            year = services.set_current_year(self.get_object(), request=request)
+            if continuing is not None:
+                services.renew_staff(
+                    request.school, continuing_ids=set(continuing), year=year, request=request
+                )
         return Response(self.get_serializer(year).data)
 
 

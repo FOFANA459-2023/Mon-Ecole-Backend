@@ -14,6 +14,8 @@ class School(TimeStampedModel):
     class Status(models.TextChoices):
         ACTIVE = "active", _("Active")
         SUSPENDED = "suspended", _("Suspended")
+        # Being erased by the platform owner (in the background); nobody can open it any more.
+        DELETING = "deleting", _("Being deleted")
 
     class Language(models.TextChoices):
         FRENCH = "fr", _("French")

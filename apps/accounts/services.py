@@ -304,6 +304,34 @@ def update_member(
     return membership
 
 
+@transaction.atomic
+def remove_member(membership: Membership, *, request=None) -> None:
+    """Take someone out of the school for good (suspending is `update_member(is_active=False)`). Their
+    account stays (it may belong to other schools) and so does everything they did here; their staff
+    record is archived. They can be added again later like a new person."""
+    from apps.people.models import StaffMember
+
+    acting_user = getattr(request, "user", None)
+    if acting_user is not None and membership.user_id == acting_user.pk:
+        raise ValidationError({"detail": _("You cannot remove your own access.")})
+    _check_director_change(membership, new_roles=[], deactivating=True, request=request)
+    user, school = membership.user, membership.school
+    summary = {"email": user.email, "roles": _roles_summary(membership.roles.all())}
+    StaffMember.objects.filter(school=school, user=user, status=StaffMember.Status.ACTIVE).update(
+        status=StaffMember.Status.ARCHIVED, archived_at=timezone.now(), updated_at=timezone.now()
+    )
+    audit.record(
+        "delete",
+        request=request,
+        school=school,
+        instance=membership,
+        module="users",
+        summary=f"Removed from the school: {user.email}",
+        old=summary,
+    )
+    membership.delete()
+
+
 def validate_role_permissions(codes: list[str]) -> list[str]:
     unknown = set(codes) - ALL_CODES
     if unknown:

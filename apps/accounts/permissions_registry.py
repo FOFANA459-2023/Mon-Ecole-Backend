@@ -113,6 +113,11 @@ MODULES: list[tuple[str, str, list[tuple[str, str]]]] = [
 
 ALL_CODES: frozenset[str] = frozenset(code for _, _, perms in MODULES for code, _ in perms)
 
+# The platform owner sees every school and maintains it, but a school's team belongs to its Director: the
+# owner never adds, edits, suspends or removes teachers and staff (Directors are managed from the platform).
+OWNER_EXCLUDED: frozenset[str] = frozenset({"staff.create", "staff.update", "staff.archive", "users.manage"})
+OWNER_CODES: frozenset[str] = ALL_CODES - OWNER_EXCLUDED
+
 
 def _codes(*prefixes: str) -> list[str]:
     return sorted(c for c in ALL_CODES if any(c == p or c.startswith(f"{p}.") for p in prefixes))

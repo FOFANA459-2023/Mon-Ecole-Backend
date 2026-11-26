@@ -411,3 +411,9 @@ class MemberViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.G
     def send_invite(self, request, pk=None):
         services.resend_invitation(self.get_object(), request=request)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @extend_schema(request=None, responses={204: None})
+    def destroy(self, request, pk=None):
+        """Remove from the school for good (to suspend, set is_active to false instead)."""
+        services.remove_member(self.get_object(), request=request)
+        return Response(status=status.HTTP_204_NO_CONTENT)

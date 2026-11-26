@@ -297,6 +297,16 @@ def update_staff(staff: StaffMember, *, data: dict, request=None) -> StaffMember
 
 @transaction.atomic
 def set_staff_status(staff: StaffMember, *, archived: bool, request=None) -> StaffMember:
+    """Archive someone who left (their sign-in to this school is suspended with it) or bring them back
+    (their sign-in too, if they had one). A Director's record follows the Director rules."""
+    from apps.accounts.models import Membership
+    from apps.accounts.services import update_member
+
+    membership = (
+        Membership.objects.filter(school=staff.school, user=staff.user).first() if staff.user_id else None
+    )
+    if membership is not None and membership.is_active == archived:
+        update_member(membership, is_active=not archived, request=request)
     staff.status = StaffMember.Status.ARCHIVED if archived else StaffMember.Status.ACTIVE
     staff.archived_at = timezone.now() if archived else None
     staff.save(update_fields=["status", "archived_at", "updated_at"])
