@@ -1,5 +1,3 @@
-import re
-
 import pytest
 from django.conf import settings
 from django.core import mail
@@ -157,34 +155,8 @@ class TestPasswords:
         assert response.status_code == 400
         assert "new_password" in response.data["fields"]
 
-    def test_reset_flow_by_email(self, school, make_member, django_capture_on_commit_callbacks):
+    def test_no_password_reset_by_email(self, school, make_member):
         user = make_member(school, "teacher")
-        with django_capture_on_commit_callbacks(execute=True):
-            response = APIClient().post("/api/v1/auth/password/reset/", {"email": user.email}, format="json")
-        assert response.status_code == 204
-        assert len(mail.outbox) == 1
-
-        uid, token = re.search(r"uid=([\w-]+)&token=([\w-]+)", mail.outbox[0].body).groups()
-        response = APIClient().post(
-            "/api/v1/auth/password/reset/confirm/",
-            {"uid": uid, "token": token, "new_password": "Reset-Passw0rd-2026"},
-            format="json",
-        )
-        assert response.status_code == 204
-        assert login(APIClient(), user.email, "Reset-Passw0rd-2026").status_code == 200
-
-        # The link only works once.
-        response = APIClient().post(
-            "/api/v1/auth/password/reset/confirm/",
-            {"uid": uid, "token": token, "new_password": "Another-Passw0rd-2026"},
-            format="json",
-        )
-        assert response.status_code == 400
-
-    def test_reset_request_does_not_reveal_unknown_accounts(self, db, django_capture_on_commit_callbacks):
-        with django_capture_on_commit_callbacks(execute=True):
-            response = APIClient().post(
-                "/api/v1/auth/password/reset/", {"email": "nobody@test.local"}, format="json"
-            )
-        assert response.status_code == 204
+        response = APIClient().post("/api/v1/auth/password/reset/", {"email": user.email}, format="json")
+        assert response.status_code == 404
         assert len(mail.outbox) == 0

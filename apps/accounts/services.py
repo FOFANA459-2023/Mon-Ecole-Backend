@@ -3,13 +3,12 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.contrib.auth.tokens import default_token_generator
+from django.contrib.auth.password_validation import validate_password
 from django.core import signing
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.utils import timezone, translation
 from django.utils.crypto import constant_time_compare, salted_hmac
-from django.utils.encoding import force_bytes
-from django.utils.http import urlsafe_base64_encode
 from django.utils.translation import gettext as _
 from rest_framework.exceptions import ValidationError
 from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
@@ -44,25 +43,6 @@ def revoke_refresh_tokens(user) -> None:
     """Log the user out of every device by blacklisting all their refresh tokens."""
     for token in OutstandingToken.objects.filter(user=user, blacklistedtoken__isnull=True):
         BlacklistedToken.objects.get_or_create(token=token)
-
-
-def password_setup_link(user) -> str:
-    uid = urlsafe_base64_encode(force_bytes(user.pk))
-    token = default_token_generator.make_token(user)
-    return f"{settings.FRONTEND_URL}/reset-password?uid={uid}&token={token}"
-
-
-def send_password_email(user) -> None:
-    """ "Forgot password": a link to choose a new password."""
-    link = password_setup_link(user)
-    # Written in the recipient's language, not the language of whoever triggered it.
-    with translation.override(user.language):
-        subject = _("Reset your Mon École password")
-        message = _(
-            "Hello {name},\n\nUse this link to choose a new password (valid for 3 days):\n{link}\n\n"
-            "If you did not ask for this, you can ignore this email."
-        ).format(name=user.full_name, link=link)
-    transaction.on_commit(lambda: send_email_task.delay(user.email, str(subject), str(message)))
 
 
 # --- invitations: verification link + temporary password ------------------------------------------
@@ -161,7 +141,10 @@ def resend_invitation(membership, *, request=None) -> None:
     user = membership.user
     if is_activated(user):
         raise ValidationError(
-            _("This person has already activated their account. They can use Forgot password if needed.")
+            _(
+                "This person has already activated their account. If they forgot their password, "
+                "reset it for them."
+            )
         )
     send_invitation(user, school=membership.school)
     audit.record(
@@ -171,6 +154,49 @@ def resend_invitation(membership, *, request=None) -> None:
         instance=membership,
         module="users",
         summary=f"Invitation sent to {user.email}",
+    )
+
+
+# --- forgotten passwords: reset by hand, never by email ------------------------------------------
+
+
+@transaction.atomic
+def reset_password(membership: Membership, new_password: str, *, request=None) -> None:
+    """Someone forgot their password: whoever manages them (the Director for their staff, the platform
+    owner for Directors) gives them a temporary one in person. They choose their own at the next sign-in,
+    and are signed out everywhere meanwhile."""
+    user = membership.user
+    acting_user = getattr(request, "user", None)
+    if acting_user is not None and user.pk == acting_user.pk:
+        raise ValidationError({"detail": _("Change your own password from your account page.")})
+    if user.is_superuser:
+        raise ValidationError({"detail": _("Only a platform administrator can change their own password.")})
+    # A Director is managed by the platform owner only, whichever school they lead.
+    if Membership.objects.filter(user=user, roles__key=DIRECTOR).exists() and not _acting_as_owner(request):
+        raise ValidationError(
+            {"detail": _("Only the platform administrator can reset a Director's password.")}
+        )
+    try:
+        validate_password(new_password, user)
+    except DjangoValidationError as exc:
+        raise ValidationError({"new_password": list(exc.messages)}) from None
+    user.set_password(new_password)
+    user.must_change_password = True
+    user.invitation_expires_at = timezone.now() + INVITATION_VALIDITY
+    # Handed over in person by someone who knows them: no email confirmation is waited for.
+    if user.email_verified_at is None:
+        user.email_verified_at = timezone.now()
+    user.save(
+        update_fields=["password", "must_change_password", "invitation_expires_at", "email_verified_at"]
+    )
+    revoke_refresh_tokens(user)
+    audit.record(
+        "password_reset",
+        request=request,
+        school=membership.school,
+        instance=membership,
+        module="users",
+        summary=f"Temporary password set for {user.email}",
     )
 
 

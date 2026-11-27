@@ -4,3 +4,11 @@
 # Made-up new password a test sets after an invitation's first sign-in.
 b7511bbcc9d71eb13c4ee62601364585cdd19ac7:apps/accounts/tests/test_invitations.py:generic-api-key:58
 b7511bbcc9d71eb13c4ee62601364585cdd19ac7:apps/accounts/tests/test_invitations.py:generic-api-key:114
+# Made-up temporary password the password-reset tests hand over.
+cd2995fc4c773f66deb42c47a8febb441c39cbac:apps/accounts/tests/test_access_rules.py:generic-api-key:76
+cd2995fc4c773f66deb42c47a8febb441c39cbac:apps/accounts/tests/test_access_rules.py:generic-api-key:90
+cd2995fc4c773f66deb42c47a8febb441c39cbac:apps/accounts/tests/test_access_rules.py:generic-api-key:99
+cd2995fc4c773f66deb42c47a8febb441c39cbac:apps/accounts/tests/test_access_rules.py:generic-api-key:109
+cd2995fc4c773f66deb42c47a8febb441c39cbac:apps/accounts/tests/test_access_rules.py:generic-api-key:116
+cd2995fc4c773f66deb42c47a8febb441c39cbac:apps/accounts/tests/test_access_rules.py:generic-api-key:123
+cd2995fc4c773f66deb42c47a8febb441c39cbac:apps/accounts/tests/test_access_rules.py:generic-api-key:128

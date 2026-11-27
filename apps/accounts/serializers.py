@@ -108,18 +108,15 @@ class ChangePasswordSerializer(serializers.Serializer):
         return value
 
 
-class PasswordResetRequestSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-
-
 class VerifyEmailSerializer(serializers.Serializer):
     token = serializers.CharField(max_length=500)
 
 
-class PasswordResetConfirmSerializer(serializers.Serializer):
-    uid = serializers.CharField()
-    token = serializers.CharField()
-    new_password = serializers.CharField(trim_whitespace=False)
+class ResetPasswordSerializer(serializers.Serializer):
+    new_password = serializers.CharField(
+        trim_whitespace=False,
+        help_text="A temporary password, handed over in person; changed at next sign-in.",
+    )
 
 
 class RoleSerializer(serializers.ModelSerializer):

@@ -949,54 +949,6 @@ paths:
                 type: object
                 additionalProperties: {}
           description: ''
-  /api/v1/auth/password/reset/:
-    post:
-      operationId: auth_password_reset_create
-      description: Endpoints reached without an access token. Keeps 401 (not 403)
-        for failed authentication.
-      tags:
-      - auth
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PasswordResetRequestRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PasswordResetRequestRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PasswordResetRequestRequest'
-        required: true
-      security:
-      - {}
-      responses:
-        '204':
-          description: No response body
-  /api/v1/auth/password/reset/confirm/:
-    post:
-      operationId: auth_password_reset_confirm_create
-      description: Endpoints reached without an access token. Keeps 401 (not 403)
-        for failed authentication.
-      tags:
-      - auth
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PasswordResetConfirmRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PasswordResetConfirmRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PasswordResetConfirmRequest'
-        required: true
-      security:
-      - {}
-      responses:
-        '204':
-          description: No response body
   /api/v1/auth/refresh/:
     post:
       operationId: auth_refresh_create
@@ -5223,6 +5175,37 @@ paths:
               schema:
                 $ref: '#/components/schemas/PlatformSchool'
           description: ''
+  /api/v1/platform/schools/{id}/directors/reset-password/:
+    post:
+      operationId: platform_schools_directors_reset_password_create
+      description: 'A Director forgot their password: set a temporary one, handed
+        over in person (never by email).'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this school.
+        required: true
+      tags:
+      - platform
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DirectorPasswordRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DirectorPasswordRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DirectorPasswordRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/platform/schools/{id}/resend-invitation/:
     post:
       operationId: platform_schools_resend_invitation_create
@@ -7535,6 +7518,38 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/v1/users/{id}/reset-password/:
+    post:
+      operationId: users_reset_password_create
+      description: |-
+        Give someone who forgot their password a temporary one, handed over in person (never by email).
+        They choose their own at the next sign-in. Not for Directors: the platform owner resets theirs.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this membership.
+        required: true
+      tags:
+      - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/v1/users/{id}/send-invite/:
     post:
       operationId: users_send_invite_create
@@ -8941,6 +8956,20 @@ components:
           $ref: '#/components/schemas/ActionEnum'
       required:
       - action
+      - user_id
+    DirectorPasswordRequest:
+      type: object
+      properties:
+        user_id:
+          type: integer
+          description: The Director's id, as listed in `directors`.
+        new_password:
+          type: string
+          minLength: 1
+          description: A temporary password, handed over in person; changed at next
+            sign-in.
+      required:
+      - new_password
       - user_id
     DiscountKindEnum:
       enum:
@@ -11660,31 +11689,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Subject'
-    PasswordResetConfirmRequest:
-      type: object
-      properties:
-        uid:
-          type: string
-          minLength: 1
-        token:
-          type: string
-          minLength: 1
-        new_password:
-          type: string
-          minLength: 1
-      required:
-      - new_password
-      - token
-      - uid
-    PasswordResetRequestRequest:
-      type: object
-      properties:
-        email:
-          type: string
-          format: email
-          minLength: 1
-      required:
-      - email
     PatchedAcademicYearRequest:
       type: object
       properties:
@@ -13175,6 +13179,16 @@ components:
       - enrollment
       - student
       - student_name
+    ResetPasswordRequest:
+      type: object
+      properties:
+        new_password:
+          type: string
+          minLength: 1
+          description: A temporary password, handed over in person; changed at next
+            sign-in.
+      required:
+      - new_password
     ResultMark:
       type: object
       properties:
