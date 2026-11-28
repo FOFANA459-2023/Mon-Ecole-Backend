@@ -113,10 +113,8 @@ MODULES: list[tuple[str, str, list[tuple[str, str]]]] = [
 
 ALL_CODES: frozenset[str] = frozenset(code for _, _, perms in MODULES for code, _ in perms)
 
-# The platform owner sees every school and maintains it, but a school's team belongs to its Director: the
-# owner never adds, edits, suspends or removes teachers and staff (Directors are managed from the platform).
-OWNER_EXCLUDED: frozenset[str] = frozenset({"staff.create", "staff.update", "staff.archive", "users.manage"})
-OWNER_CODES: frozenset[str] = ALL_CODES - OWNER_EXCLUDED
+# The platform owner can do everything a Director can, in every school (teachers and staff included).
+OWNER_CODES: frozenset[str] = ALL_CODES
 
 
 def _codes(*prefixes: str) -> list[str]:

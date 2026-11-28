@@ -1,7 +1,7 @@
 """The platform owner's view: every school on Mon École, registering new schools and their Directors.
 
 Only superusers (the owners of the platform) reach these endpoints. They are not school members; inside a
-school they see everything but never manage its staff (see OWNER_CODES): the Director does. Here they
+school they can do everything its Director can (see OWNER_CODES). Here they
 register, suspend and delete schools, and add, suspend, restore or remove Directors (or reset a
 Director's forgotten password).
 """

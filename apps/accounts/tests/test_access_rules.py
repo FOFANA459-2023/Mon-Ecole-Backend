@@ -165,18 +165,22 @@ class TestNewSchoolYear:
 
 
 class TestPlatformOwner:
-    def test_sees_a_school_but_never_manages_its_team(self, school, owner, make_staff, client_for):
+    def test_has_every_director_permission(self, school, owner, make_staff, make_member, client_for):
+        from apps.accounts.permissions_registry import ALL_CODES
+
         staff = make_staff()
+        teacher = make_member(school, "teacher")
         client = client_for(owner, school)
-        assert client.get("/api/v1/staff/").status_code == 200
         assert client.get("/api/v1/dashboard/summary/").status_code == 200
-        assert client.post("/api/v1/staff/", {"first_name": "A", "last_name": "B"}).status_code == 403
-        assert client.post(f"/api/v1/staff/{staff.pk}/archive/").status_code == 403
-        assert client.get("/api/v1/users/").status_code == 403
+        assert client.post(f"/api/v1/staff/{staff.pk}/archive/").status_code == 200
+        assert client.get("/api/v1/users/").status_code == 200
+        member_id = membership(teacher, school).pk
+        assert client.patch(f"/api/v1/users/{member_id}/", {"is_active": False}).status_code == 200
+        url = f"/api/v1/users/{member_id}/reset-password/"
+        assert client.post(url, {"new_password": "Temporary-Pass-2026"}, format="json").status_code == 204
         me = client_for(owner).get("/api/v1/me/").data
         permissions = next(m["permissions"] for m in me["memberships"] if m["school"]["id"] == school.pk)
-        assert "staff.view" in permissions and "staff.create" not in permissions
-        assert "users.manage" not in permissions
+        assert set(permissions) == ALL_CODES
 
     def test_adds_suspends_restores_and_removes_directors(self, school, owner, make_member, client_for):
         first = make_member(school, "director")

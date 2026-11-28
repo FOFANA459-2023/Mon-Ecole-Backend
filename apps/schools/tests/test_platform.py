@@ -70,11 +70,11 @@ class TestPlatformSchools:
         assert alpha["member_count"] == 1
         assert alpha["directors"][0]["account_status"] == "active"
 
-    def test_owner_sees_any_school_but_leaves_its_team_to_the_director(self, owner, school, client_for):
+    def test_owner_works_in_any_school_like_its_director(self, owner, school, client_for):
         client = client_for(owner, school)
         assert client.get("/api/v1/invoices/").status_code == 200
         assert client.get("/api/v1/staff/").status_code == 200
-        assert client.get("/api/v1/users/").status_code == 403
+        assert client.get("/api/v1/users/").status_code == 200
 
     def test_suspend_and_reactivate(self, owner, school, make_member, client_for):
         teacher = make_member(school, "teacher")
