@@ -85,7 +85,7 @@ class TestMembers:
         assert "role_ids" in response.data["fields"]
         assert not User.objects.filter(email="deputy@test.local").exists()
 
-    def test_the_owner_adds_directors_from_the_platform_not_here(self, school, owner, client_for):
+    def test_the_owner_can_add_a_director_from_the_school_too(self, school, owner, client_for):
         response = client_for(owner, school).post(
             "/api/v1/users/",
             {
@@ -96,7 +96,7 @@ class TestMembers:
             },
             format="json",
         )
-        assert response.status_code == 403
+        assert response.status_code == 201
 
     def test_existing_account_from_another_school_is_reused(
         self, school, other_school, make_member, client_for, django_capture_on_commit_callbacks
@@ -153,9 +153,9 @@ class TestMembers:
         # A Director cannot demote another Director.
         response = client_for(second, school).patch(f"/api/v1/users/{membership.pk}/", demote, format="json")
         assert response.status_code == 400
-        # The owner manages Directors from the platform (see test_access_rules), not from this page.
+        # The platform owner can, from the school's Users page as well as from the platform.
         response = client_for(owner, school).patch(f"/api/v1/users/{membership.pk}/", demote, format="json")
-        assert response.status_code == 403
+        assert response.status_code == 200
 
     def test_resending_an_invitation_replaces_the_temporary_password(
         self, school, make_member, client_for, django_capture_on_commit_callbacks
